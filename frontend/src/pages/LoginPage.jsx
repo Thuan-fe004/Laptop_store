@@ -117,27 +117,7 @@ export default function LoginPage() {
           <Link to="/register" style={styles.link}>Đăng ký ngay →</Link>
         </p>
 
-        {/* Test accounts */}
-        <div style={styles.testAccounts}>
-          <p style={{ ...styles.testTitle, display:'flex', alignItems:'center', gap:6 }}>
-            🧪 Tài khoản thử nghiệm:
-          </p>
-          <div style={{ display:'flex', flexDirection:'column', gap:4, marginTop:6 }}>
-            {[
-              { role:'Admin', email:'admin@laptopstore.com', pw:'Admin@123', color:'#7c3aed' },
-              { role:'Khách hàng', email:'nguyenvanan@gmail.com', pw:'Customer@123', color:'#16a34a' },
-            ].map(acc => (
-              <div key={acc.role} style={{ display:'flex', alignItems:'center', gap:8, padding:'6px 10px', background:'#fff', borderRadius:8, border:'1px solid #e5e7eb' }}>
-                <span style={{ fontSize:11, fontWeight:800, color:acc.color, background:`${acc.color}15`, padding:'2px 8px', borderRadius:10, flexShrink:0 }}>{acc.role}</span>
-                <span style={{ fontSize:11, color:'#6b7280', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{acc.email}</span>
-                <button onClick={() => setForm({ email: acc.email, password: acc.pw })}
-                  style={{ fontSize:10, color:'#2563eb', background:'#eff6ff', border:'none', borderRadius:6, padding:'2px 8px', cursor:'pointer', fontWeight:700, flexShrink:0 }}>
-                  Dùng
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
+        
       </div>
     </div>
   )
