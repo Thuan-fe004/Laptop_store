@@ -28,7 +28,7 @@ dist-ssr
 flask_env/
 venv/
 env/
-.env
+backend/.env
 
 # Backend
 backend/__pycache__/
