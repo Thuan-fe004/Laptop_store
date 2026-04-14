@@ -1,13 +1,18 @@
 # backend/ai_chat.py
 import re
+import os
 import logging
 import numpy as np
-import ollama
+from groq import Groq
 from sklearn.metrics.pairwise import cosine_similarity
 from sentence_transformers import SentenceTransformer
 from knowledge_base import KNOWLEDGE_BASE
 
 logger = logging.getLogger(__name__)
+
+# ── Groq client ───────────────────────────────────────────────
+client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+GROQ_MODEL = "llama-3.3-70b-versatile"  # Miễn phí, nhanh, hỗ trợ tiếng Việt tốt
 
 # ── Embedding model ───────────────────────────────────────────
 try:
@@ -21,7 +26,6 @@ _kb_texts      = [f"{k['topic']} {k['content']}" for k in KNOWLEDGE_BASE]
 _kb_embeddings = embedder.encode(_kb_texts, show_progress_bar=False)
 logger.info(f"✅ Knowledge base: {len(KNOWLEDGE_BASE)} entries")
 
-OLLAMA_MODEL = 'qwen2.5:3b'
 
 # ════════════════════════════════════════════════════════════
 # INTENT DETECTION
@@ -124,7 +128,6 @@ def search_knowledge(query: str, top_k: int = 3, threshold: float = 0.25) -> lis
 
 # ════════════════════════════════════════════════════════════
 # RAG: TÌM SẢN PHẨM BẰNG RAW SQL
-# (không dùng ORM model, giống các controller khác trong project)
 # ════════════════════════════════════════════════════════════
 def search_products_sql(query: str, budget=None, brand: str = None, db=None, limit: int = 6) -> list:
     if db is None:
@@ -133,7 +136,6 @@ def search_products_sql(query: str, budget=None, brand: str = None, db=None, lim
         where  = ["p.status = 1"]
         params = {}
 
-        # Tìm theo từ khóa tên sản phẩm
         if query and len(query.strip()) > 1:
             words = [w for w in query.split() if len(w) > 2][:3]
             if words:
@@ -144,12 +146,10 @@ def search_products_sql(query: str, budget=None, brand: str = None, db=None, lim
                     params[k] = f"%{w}%"
                 where.append(f"({' OR '.join(conds)})")
 
-        # Lọc theo thương hiệu
         if brand:
             where.append("b.name LIKE :brand")
             params['brand'] = f"%{brand}%"
 
-        # Lọc theo ngân sách
         if budget:
             if budget['min'] > 0:
                 where.append("COALESCE(p.sale_price, p.price) >= :min_price")
@@ -303,21 +303,32 @@ def chat(user_message: str, history: list, db=None, stream: bool = False):
         user_content = f"{user_message}\n\n[Dữ liệu hỗ trợ - không hiển thị với khách:]\n{context}"
     messages.append({"role": "user", "content": user_content})
 
-    # 7. Gọi Ollama
+    # 7. Gọi Groq API
     try:
-        opts = {"temperature": 0.7, "top_p": 0.9, "num_predict": 400, "repeat_penalty": 1.1}
         if stream:
             def _gen():
-                for chunk in ollama.chat(model=OLLAMA_MODEL, messages=messages, stream=True, options=opts):
-                    c = chunk.get('message', {}).get('content', '')
+                response = client.chat.completions.create(
+                    model=GROQ_MODEL,
+                    messages=messages,
+                    temperature=0.7,
+                    max_tokens=400,
+                    stream=True,
+                )
+                for chunk in response:
+                    c = chunk.choices[0].delta.content or ''
                     if c:
                         yield c
             return _gen()
         else:
-            resp = ollama.chat(model=OLLAMA_MODEL, messages=messages, options=opts)
-            return resp['message']['content']
+            response = client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=400,
+            )
+            return response.choices[0].message.content
 
     except Exception as e:
-        logger.error(f"Ollama error: {e}")
+        logger.error(f"Groq error: {e}")
         err = "⚠️ Hệ thống AI đang gặp sự cố. Vui lòng thử lại hoặc gọi hotline **1800-1234**!"
         return (x for x in [err]) if stream else err
