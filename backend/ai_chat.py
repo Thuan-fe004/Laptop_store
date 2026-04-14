@@ -4,27 +4,34 @@ import os
 import logging
 import numpy as np
 from groq import Groq
-from sklearn.metrics.pairwise import cosine_similarity
-from sentence_transformers import SentenceTransformer
 from knowledge_base import KNOWLEDGE_BASE
 
 logger = logging.getLogger(__name__)
 
 # ── Groq client ───────────────────────────────────────────────
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
-GROQ_MODEL = "llama-3.3-70b-versatile"  # Miễn phí, nhanh, hỗ trợ tiếng Việt tốt
+GROQ_MODEL = "llama-3.3-70b-versatile"
 
-# ── Embedding model ───────────────────────────────────────────
-try:
-    embedder = SentenceTransformer('keepitreal/vietnamese-sbert')
-    logger.info("✅ Embedding model loaded")
-except Exception:
-    embedder = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
-    logger.info("✅ Fallback embedding model loaded")
+# ── Lazy load embedding model ─────────────────────────────────
+# Không load ngay khi khởi động để tránh timeout trên Render
+_embedder = None
+_kb_embeddings = None
 
-_kb_texts      = [f"{k['topic']} {k['content']}" for k in KNOWLEDGE_BASE]
-_kb_embeddings = embedder.encode(_kb_texts, show_progress_bar=False)
-logger.info(f"✅ Knowledge base: {len(KNOWLEDGE_BASE)} entries")
+def get_embedder():
+    global _embedder, _kb_embeddings
+    if _embedder is None:
+        from sklearn.metrics.pairwise import cosine_similarity
+        from sentence_transformers import SentenceTransformer
+        try:
+            _embedder = SentenceTransformer('keepitreal/vietnamese-sbert')
+            logger.info("✅ Embedding model loaded")
+        except Exception:
+            _embedder = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+            logger.info("✅ Fallback embedding model loaded")
+        _kb_texts = [f"{k['topic']} {k['content']}" for k in KNOWLEDGE_BASE]
+        _kb_embeddings = _embedder.encode(_kb_texts, show_progress_bar=False)
+        logger.info(f"✅ Knowledge base: {len(KNOWLEDGE_BASE)} entries")
+    return _embedder, _kb_embeddings
 
 
 # ════════════════════════════════════════════════════════════
@@ -117,8 +124,10 @@ def extract_brand(message: str):
 # ════════════════════════════════════════════════════════════
 def search_knowledge(query: str, top_k: int = 3, threshold: float = 0.25) -> list:
     try:
+        from sklearn.metrics.pairwise import cosine_similarity
+        embedder, kb_embeddings = get_embedder()
         q_emb   = embedder.encode([query], show_progress_bar=False)
-        scores  = cosine_similarity(q_emb, _kb_embeddings)[0]
+        scores  = cosine_similarity(q_emb, kb_embeddings)[0]
         top_idx = np.argsort(scores)[::-1][:top_k]
         return [KNOWLEDGE_BASE[i]['content'] for i in top_idx if scores[i] >= threshold]
     except Exception as e:
