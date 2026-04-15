@@ -40,7 +40,7 @@ def create_app():
     from controllers.order_controller import order_bp
     from controllers.admin_controller import admin_bp
     from controllers.product_admin_controller import product_admin_bp
-    from controllers.user_admin_controller import user_admin_controller_bp
+    from controllers.user_admin_controller import user_admin_controller
     from controllers.category_admin_controller import category_admin_bp 
     from controllers.coupon_admin_controller import coupon_admin_bp
     from controllers.order_admin_controller import order_admin_bp
@@ -57,7 +57,7 @@ def create_app():
     # Admin blueprints
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
     app.register_blueprint(product_admin_bp, url_prefix='/api/admin')
-    app.register_blueprint(user_admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(user_admin_controller, url_prefix='/api/admin')
     app.register_blueprint(category_admin_bp, url_prefix='/api/admin')
     app.register_blueprint(coupon_admin_bp, url_prefix='/api/admin')
     app.register_blueprint(order_admin_bp, url_prefix='/api/admin')
