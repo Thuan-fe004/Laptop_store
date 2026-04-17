@@ -98,7 +98,7 @@ def create_app():
             "success": False,
             "message": "Endpoint không tồn tại",
             "path": f"/{path}",
-            "available": [" / ", "/api/health", "/api/products", ...]
+            "available": ["/", "/api/health", "/api/products", "/api/auth/login"]
         }), 404
 
     # ====================== JWT ERROR HANDLERS ======================

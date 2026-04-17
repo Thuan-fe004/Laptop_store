@@ -88,12 +88,17 @@ def handle_chat_stream():
 # ── GET /api/chat/health ──────────────────────────────────────
 @chat_bp.route('/api/chat/health', methods=['GET'])
 def health_check():
-    import ollama
-    status = {"ai_service": "unknown", "db": True, "model": "qwen2.5:7b"}
+    import os
+    from groq import Groq
+    status = {"ai_service": "unknown", "db": True, "model": "llama-3.3-70b-versatile"}
     try:
-        models = ollama.list()
+        api_key = os.environ.get("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("GROQ_API_KEY chua duoc cau hinh")
+        groq_client = Groq(api_key=api_key)
+        models = groq_client.models.list()
         status["ai_service"]       = "online"
-        status["available_models"] = [m['name'] for m in models.get('models', [])]
+        status["available_models"] = [m.id for m in models.data]
     except Exception as e:
         status["ai_service"] = "offline"
         status["error"]      = str(e)

@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import api, { orderAPI } from '../services/api'
 import { useAuth } from '../context/AuthContext'
-
+import { IMG_BASE_URL } from '../constants/config';
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
 const STATUS_MAP = {
@@ -292,7 +292,7 @@ function OrderModal({ order, onClose, onCancel, reviewedIds, onReviewed }) {
             <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
               {(order.items || []).map((it, i) => {
                 const img = it.product_image
-                  ? `http://localhost:5000/static/uploads/${it.product_image}`
+                  ? `${IMG_BASE_URL}/${it.product_image}`
                   : 'https://placehold.co/56x44?text=?'
                 const pid = it.product_id ?? null
                 const reviewed = reviewedIds?.has(pid) || false
@@ -544,7 +544,7 @@ export default function OrdersPage() {
                     <div style={{ display:'flex', gap:-8, flexShrink:0 }}>
                       {(order.items || []).slice(0, 3).map((it, i) => {
                         const img = it.product_image
-                          ? `http://localhost:5000/static/uploads/${it.product_image}`
+                          ? `${IMG_BASE_URL}/${it.product_image}`
                           : 'https://placehold.co/52x40?text=?'
                         return (
                           <img key={i} src={img} alt={it.product_name}

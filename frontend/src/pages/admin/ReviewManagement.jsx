@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { toast } from 'react-toastify'
 import { adminReviewAPI } from '../../services/api'
-
+import { IMG_BASE_URL } from '../../constants/config';
 const STARS = (r) => '★'.repeat(r) + '☆'.repeat(5 - r)
 
 const STATUS_BADGE = {
@@ -11,11 +11,11 @@ const STATUS_BADGE = {
 }
 
 // ── Helper: build full image URL ──────────────────────────────
-const IMG_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000'
+
 function imgUrl(url) {
   if (!url) return ''
   if (url.startsWith('http')) return url
-  return `${IMG_BASE}/static/uploads/${url}`
+  return `${IMG_BASE_URL}/static/uploads/${url}`
 }
 
 function StarBar({ rating, count, total }) {

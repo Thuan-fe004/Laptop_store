@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 import AIChatBox from '../components/AIChatBox'
-
+import { IMG_BASE_URL } from '../constants/config';
 /* ═══════════════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════════════ */
@@ -43,7 +43,7 @@ function ProductCard({ product, compact }) {
   const oldPrice = product.sale_price ? product.price : null
   const discount = oldPrice ? Math.round((1 - product.sale_price / product.price) * 100) : null
   const img = product.primary_image
-    ? `http://localhost:5000/static/uploads/${product.primary_image}`
+    ? `${IMG_BASE_URL}/${product.primary_image}`
     : 'https://placehold.co/300x220?text=Laptop'
 
   return (

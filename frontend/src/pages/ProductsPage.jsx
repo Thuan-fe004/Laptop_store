@@ -6,7 +6,9 @@ import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
-const IMG = (url) => url ? `http://localhost:5000/static/uploads/${url}` : null
+import { IMG_BASE_URL } from '../constants/config';
+
+const IMG = (url) => url ? `${IMG_BASE_URL}/${url}` : null
 
 function Stars({ rating, count }) {
   return (

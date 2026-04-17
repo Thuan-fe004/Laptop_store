@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { adminProductAPI } from '../../services/api'
-
+import { IMG_BASE_URL } from '../../constants/config';
 // ─── Helpers ──────────────────────────────────────────
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
@@ -330,7 +330,7 @@ function ProductFormModal({ product, categories, brands, onClose, onSaved }) {
                     <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
                       {images.map(img => (
                         <div key={img.id} style={{position:'relative',borderRadius:12,overflow:'hidden',border:'1.5px solid #e5e7eb'}}>
-                          <img src={`http://localhost:5000/static/uploads/${img.image_url}`}
+                          <img src={`${IMG_BASE_URL}/${img.image_url}`}
                             alt={img.image_name}
                             style={{width:'100%',height:140,objectFit:'cover',display:'block'}}
                             onError={e => { e.target.src = 'https://via.placeholder.com/200x140?text=No+Image' }}
@@ -609,7 +609,7 @@ export default function ProductManagement() {
                     <td style={{padding:'12px 16px',maxWidth:280}}>
                       <div style={{display:'flex',alignItems:'center',gap:12}}>
                         <img
-                          src={p.primary_image ? `http://localhost:5000/static/uploads/${p.primary_image}` : 'https://via.placeholder.com/48?text=No'}
+                          src={p.primary_image ? `${IMG_BASE_URL}/${p.primary_image}` : 'https://via.placeholder.com/48?text=No'}
                           alt={p.name}
                           style={{width:48,height:48,borderRadius:8,objectFit:'cover',flexShrink:0,border:'1px solid #e5e7eb'}}
                           onError={e=>{e.target.src='https://via.placeholder.com/48?text=?'}}

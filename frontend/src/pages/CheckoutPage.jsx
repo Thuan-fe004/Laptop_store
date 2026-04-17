@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
-
+import { IMG_BASE_URL } from '../constants/config';
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
 const PROVINCES = ['TP. Hồ Chí Minh','Hà Nội','Đà Nẵng','Cần Thơ','Hải Phòng','An Giang','Bà Rịa - Vũng Tàu','Bắc Giang','Bắc Kạn','Bạc Liêu','Bắc Ninh','Bến Tre','Bình Định','Bình Dương','Bình Phước','Bình Thuận','Cà Mau','Cao Bằng','Đắk Lắk','Đắk Nông','Điện Biên','Đồng Nai','Đồng Tháp','Gia Lai','Hà Giang','Hà Nam','Hà Tĩnh','Hải Dương','Hậu Giang','Hòa Bình','Hưng Yên','Khánh Hòa','Kiên Giang','Kon Tum','Lai Châu','Lâm Đồng','Lạng Sơn','Lào Cai','Long An','Nam Định','Nghệ An','Ninh Bình','Ninh Thuận','Phú Thọ','Phú Yên','Quảng Bình','Quảng Nam','Quảng Ngãi','Quảng Ninh','Quảng Trị','Sóc Trăng','Sơn La','Tây Ninh','Thái Bình','Thái Nguyên','Thanh Hóa','Thừa Thiên Huế','Tiền Giang','Trà Vinh','Tuyên Quang','Vĩnh Long','Vĩnh Phúc','Yên Bái']
@@ -435,7 +435,7 @@ export default function CheckoutPage() {
                 <div style={{ maxHeight: 260, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16, paddingRight: 4 }}>
                   {items.map(it => {
                     const price = it.sale_price || it.price
-                    const img   = it.image ? `http://localhost:5000/static/uploads/${it.image}` : null
+                    const img   = it.image ? `${IMG_BASE_URL}/${it.image}` : null
                     return (
                       <div key={it.product_id} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                         <div style={{ position: 'relative', flexShrink: 0 }}>

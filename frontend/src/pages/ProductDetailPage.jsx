@@ -6,7 +6,9 @@ import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
 
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
-const IMG = (url) => url ? `http://localhost:5000/static/uploads/${url}` : null
+import { IMG_BASE_URL } from '../constants/config';
+
+const IMG = (url) => url ? `${IMG_BASE_URL}/${url}` : null
 
 function Stars({ rating, size = 16, interactive = false, onRate }) {
   const [hover, setHover] = useState(0)
@@ -641,7 +643,7 @@ export default function ProductDetailPage() {
                           return (
                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', paddingLeft: 52, marginTop: 10 }}>
                               {imgs.map((url, imgIdx) => {
-                                const fullUrl = url.startsWith('http') ? url : `http://localhost:5000/static/uploads/${url}`
+                                const fullUrl = url.startsWith('http') ? url : `${IMG_BASE_URL}/${url}`
                                 return (
                                   <a key={imgIdx} href={fullUrl} target="_blank" rel="noreferrer">
                                     <img

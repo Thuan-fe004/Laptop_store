@@ -12,7 +12,9 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react'
 
-const API_BASE = 'http://localhost:5000'
+import { API_BASE_URL } from '../constants/config';
+
+const API_BASE = API_BASE_URL;
 
 // ── Quick topic suggestions ───────────────────────────────────
 const QUICK_TOPICS = [
@@ -105,7 +107,7 @@ export default function AIChatBox() {
 
   // ── Check AI status ─────────────────────────────────────
   useEffect(() => {
-    fetch(`${API_BASE}/api/chat/health`)
+    fetch(`${API_BASE}/chat/health`)
       .then(r => r.json())
       .then(d => setAiStatus(d.ai_service === 'online' ? 'online' : 'offline'))
       .catch(() => setAiStatus('offline'))
@@ -177,7 +179,7 @@ export default function AIChatBox() {
     let fullReply = ''
 
     try {
-      const res = await fetch(`${API_BASE}/api/chat/stream`, {
+      const res = await fetch(`${API_BASE}/chat/stream`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -221,7 +223,7 @@ export default function AIChatBox() {
     } catch (err) {
       // Fallback: thử non-streaming
       try {
-        const res = await fetch(`${API_BASE}/api/chat`, {
+        const res = await fetch(`${API_BASE}/chat`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: text, history: history.slice(-8) }),
