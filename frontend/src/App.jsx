@@ -3,17 +3,17 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
+import { PrivateRoute, AdminRoute } from './routes/PrivateRoute';
 
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import HomePage from './pages/HomePage';  // ✅ Chỉ import, không khai báo lại
+import HomePage from './pages/HomePage';
 import ProductsPage      from './pages/ProductsPage'
 import ProductDetailPage from './pages/ProductDetailPage'
 import CartPage           from './pages/CartPage'
 import CheckoutPage       from './pages/CheckoutPage'
 import OrdersPage         from './pages/OrdersPage'
-
 
 // Admin Pages
 import AdminLayout from './pages/admin/AdminLayout';
@@ -25,23 +25,6 @@ import CouponManagement from './pages/admin/CouponManagement';
 import OrderManagement from './pages/admin/OrderManagement';
 import ReviewManagement from './pages/admin/ReviewManagement'
 
-// ── Route bảo vệ Admin ──────────────────────────────────────────
-function AdminRoute({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return <div style={{ padding: 50, textAlign: 'center' }}>Đang tải...</div>;
-  if (!user || user.role !== 'admin') return <Navigate to="/login" replace />;
-  return children;
-}
-
-// ── Route bảo vệ người dùng đã đăng nhập ───────────────────────
-function PrivateRoute({ children }) {
-  const { user, loading } = useAuth();
-  if (loading) return <div style={{ padding: 50, textAlign: 'center' }}>Đang tải...</div>;
-  if (!user) return <Navigate to="/login" replace />;
-  return children;
-}
-
-// ── App ─────────────────────────────────────────────────────────
 export default function App() {
   return (
     <BrowserRouter>
@@ -53,9 +36,10 @@ export default function App() {
 
           {/* Trang chủ — public */}
           <Route path="/" element={<HomePage />} />
-          <Route path="/products"      element={<ProductsPage />} />
+          <Route path="/products"       element={<ProductsPage />} />
           <Route path="/products/:slug" element={<ProductDetailPage />} />
-          
+
+          {/* Private routes */}
           <Route path="/cart"     element={<PrivateRoute><CartPage /></PrivateRoute>} />
           <Route path="/checkout" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
           <Route path="/orders"   element={<PrivateRoute><OrdersPage /></PrivateRoute>} />
@@ -69,13 +53,13 @@ export default function App() {
               </AdminRoute>
             }
           >
-            <Route index                element={<AdminDashboard />} />
-            <Route path="users"         element={<UserManagement />} />
-            <Route path="products"      element={<ProductManagement />} />
-            <Route path="categories"    element={<CategoryManagement />} />
-            <Route path="coupons"       element={<CouponManagement />} />
-            <Route path="orders"        element={<OrderManagement />} />
-              <Route path="reviews"    element={<ReviewManagement />}/>
+            <Route index             element={<AdminDashboard />} />
+            <Route path="users"      element={<UserManagement />} />
+            <Route path="products"   element={<ProductManagement />} />
+            <Route path="categories" element={<CategoryManagement />} />
+            <Route path="coupons"    element={<CouponManagement />} />
+            <Route path="orders"     element={<OrderManagement />} />
+            <Route path="reviews"    element={<ReviewManagement />} />
           </Route>
 
           {/* 404 */}

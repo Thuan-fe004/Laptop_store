@@ -14,28 +14,22 @@ export function AuthProvider({ children }) {
     const token = localStorage.getItem('token')
 
     if (!token) {
-      // Không có token → khách chưa đăng nhập, render ngay
       setLoading(false)
       return
     }
 
-    // Có token → verify với backend để đảm bảo còn hợp lệ
-    // Tránh trường hợp token hết hạn nhưng localStorage vẫn còn
     api.get('/auth/me')
       .then(res => {
         if (res.data?.user) {
           setUser(res.data.user)
-          // Cập nhật user mới nhất từ server vào localStorage
           localStorage.setItem('user', JSON.stringify(res.data.user))
         } else {
-          // Token không hợp lệ → xóa sạch
           localStorage.removeItem('token')
           localStorage.removeItem('user')
           setUser(null)
         }
       })
       .catch(() => {
-        // Token hết hạn hoặc server lỗi → xóa sạch, về trạng thái khách
         localStorage.removeItem('token')
         localStorage.removeItem('user')
         setUser(null)
@@ -43,18 +37,25 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false))
   }, [])
 
+  // ─── ĐĂNG KÝ ────────────────────────────────────────────────
+  const register = useCallback(async (formData) => {
+    const res = await api.post('/auth/register', formData)
+    return res.data
+  }, [])
+
+  // ─── ĐĂNG NHẬP ──────────────────────────────────────────────
   const login = useCallback(async (email, password) => {
     const res = await api.post('/auth/login', { email, password })
     const { token, user: u } = res.data
     localStorage.setItem('token', token)
     localStorage.setItem('user',  JSON.stringify(u))
     setUser(u)
-    // Redirect theo role — AuthContext xử lý, LoginPage không cần navigate nữa
     if (u.role === 'admin') navigate('/admin', { replace: true })
     else                    navigate('/',      { replace: true })
     return u
   }, [navigate])
 
+  // ─── ĐĂNG XUẤT ──────────────────────────────────────────────
   const logout = useCallback(() => {
     localStorage.removeItem('token')
     localStorage.removeItem('user')
@@ -62,6 +63,7 @@ export function AuthProvider({ children }) {
     navigate('/login', { replace: true })
   }, [navigate])
 
+  // ─── CẬP NHẬT USER ──────────────────────────────────────────
   const updateUser = useCallback((newData) => {
     const merged = { ...user, ...newData }
     localStorage.setItem('user', JSON.stringify(merged))
@@ -69,7 +71,8 @@ export function AuthProvider({ children }) {
   }, [user])
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, updateUser }}>
+    // ✅ Đã thêm register vào value
+    <AuthContext.Provider value={{ user, loading, login, logout, updateUser, register }}>
       {children}
     </AuthContext.Provider>
   )
