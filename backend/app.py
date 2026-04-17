@@ -91,14 +91,13 @@ def create_app():
         return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
     # ====================== FALLBACK ROUTE ======================
-    @app.route('/<path:path>')
-    def catch_all(path):
-        """Xử lý tất cả các route không tồn tại"""
+    @app.errorhandler(404)
+    def not_found(e):
+        """Xu ly tat ca cac route khong ton tai"""
         return jsonify({
             "success": False,
-            "message": "Endpoint không tồn tại",
-            "path": f"/{path}",
-            "available": ["/", "/api/health", "/api/products", "/api/auth/login"]
+            "message": "Endpoint khong ton tai",
+            "available": ["/", "/api/health", "/api/products", "/api/auth/login", "/api/auth/register"]
         }), 404
 
     # ====================== JWT ERROR HANDLERS ======================
