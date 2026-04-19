@@ -11,7 +11,13 @@ payment_bp = Blueprint('payment', __name__)
 
 # ─── CẤU HÌNH SEPAY PAYMENT GATEWAY ─────────────────────
 SEPAY_MERCHANT_ID  = "SP-LIVE-TV245266"
-SEPAY_SECRET_KEY   = "Thuan2004@"          # ← Thay bằng secret key đầy đủ của bạn
+
+# Lấy từ tab "Thông tin đơn vị" — dùng để ký request tạo phiên thanh toán
+SEPAY_SECRET_KEY   = "spsk_live_AAwqcEFmEtPoYJ37xKbYAi2Afs8Ukgqk"  # ← điền đầy đủ
+
+# Bạn tự đặt trong tab "IPN" — dùng để xác thực khi SePay gọi về server
+SEPAY_IPN_SECRET   = "Thuan2004@"   # ← điền key IPN 
+
 SEPAY_CHECKOUT_URL = "https://pay.sepay.vn/v1/checkout/init"
 
 # ─── URL frontend để redirect sau thanh toán ─────────────
@@ -120,8 +126,8 @@ def sepay_ipn():
     data = request.get_json(force=True, silent=True) or {}
     print(f"[IPN] Nhận từ SePay: {json.dumps(data, ensure_ascii=False)}")
 
-    # Xác thực chữ ký
-    if not verify_ipn_signature(data, SEPAY_SECRET_KEY):
+    # Xác thực chữ ký IPN
+    if not verify_ipn_signature(data, SEPAY_IPN_SECRET):
         print("[IPN] ❌ Chữ ký không hợp lệ!")
         return jsonify({'success': False, 'message': 'Invalid signature'}), 401
 
