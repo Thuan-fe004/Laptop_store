@@ -81,7 +81,13 @@ def create_payment(order_id):
     payload['signature'] = generate_signature(payload, SEPAY_SECRET_KEY)
 
     try:
-        resp      = http_requests.post(SEPAY_CHECKOUT_URL, json=payload, timeout=15)
+        resp = http_requests.post(SEPAY_CHECKOUT_URL, json=payload, timeout=15)
+
+        # DEBUG — xem SePay trả về gì
+        print(f"[SEPAY] Status code: {resp.status_code}")
+        print(f"[SEPAY] Response text: {resp.text[:1000]}")
+        print(f"[SEPAY] Request payload: {json.dumps(payload, ensure_ascii=False)}")
+
         resp_data = resp.json()
 
         if resp.status_code == 200 and resp_data.get('code') == '00':
