@@ -12,13 +12,13 @@ payment_bp = Blueprint('payment', __name__)
 SEPAY_MERCHANT_ID  = "SP-LIVE-TV245266"
 
 # Lấy từ tab "Thông tin đơn vị"
-SEPAY_SECRET_KEY   = "spsk_live_AAwqcEFmEtPoYJ37xKbYAi2Afs8*****"  # ← điền đầy đủ
+SEPAY_SECRET_KEY   = "spsk_live_AAwqcEFmEtPoYJ37xKbYAi2Afs8Ukgqk"  # ← điền đầy đủ
 
 # Bạn tự đặt trong tab "IPN"
-SEPAY_IPN_SECRET   = "Thuan****@"   # ← điền đầy đủ
+SEPAY_IPN_SECRET   = "Thuan2004@"   # ← điền đầy đủ
 
-# URL Production của SePay PG
-SEPAY_CHECKOUT_URL = "https://pay.sepay.vn/v1/checkout/init"
+# URL Production của SePay PG (đúng)
+SEPAY_CHECKOUT_URL = "https://pgapi.sepay.vn/v1/checkout/init"
 
 # ─── URL frontend để redirect sau thanh toán ─────────────
 FRONTEND_URL = "https://laptopstore-ten.vercel.app"
