@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
-import { IMG_BASE_URL } from '../constants/config';
+
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
 function Navbar({ user, logout }) {
@@ -188,7 +188,7 @@ export default function CartPage() {
                   const price    = item.sale_price || item.price
                   const oldPrice = item.sale_price ? item.price : null
                   const discount = oldPrice ? Math.round((1 - item.sale_price / item.price) * 100) : null
-                  const img      = item.image ? `${IMG_BASE_URL}/${item.image}` : 'https://placehold.co/110x86?text=Laptop'
+                  const img      = item.image ? `http://localhost:5000/static/uploads/${item.image}` : 'https://placehold.co/110x86?text=Laptop'
                   const isU      = updating === item.product_id
                   const isSel    = selected.has(item.product_id)
 
@@ -271,7 +271,7 @@ export default function CartPage() {
                     <div style={{ marginBottom: 14, maxHeight: 180, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {selectedItems.map(it => {
                         const price = it.sale_price || it.price
-                        const img   = it.image ? `${IMG_BASE_URL}/${item.image}` : null
+                        const img   = it.image ? `http://localhost:5000/static/uploads/${it.image}` : null
                         return (
                           <div key={it.product_id} style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                             <div style={{ width: 40, height: 30, borderRadius: 7, background: '#f8fafc', overflow: 'hidden', flexShrink: 0, position: 'relative' }}>

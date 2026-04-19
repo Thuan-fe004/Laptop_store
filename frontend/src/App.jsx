@@ -24,7 +24,8 @@ import CategoryManagement from './pages/admin/CategoryManagement';
 import CouponManagement from './pages/admin/CouponManagement';
 import OrderManagement from './pages/admin/OrderManagement';
 import ReviewManagement from './pages/admin/ReviewManagement'
-
+import ReportsPage from './pages/admin/ReportsPage'
+import AccountPage from './pages/AccountPage'
 export default function App() {
   return (
     <BrowserRouter>
@@ -38,6 +39,8 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/products"       element={<ProductsPage />} />
           <Route path="/products/:slug" element={<ProductDetailPage />} />
+          <Route path="/profile" element={<AccountPage />} />
+          
 
           {/* Private routes */}
           <Route path="/cart"     element={<PrivateRoute><CartPage /></PrivateRoute>} />
@@ -60,6 +63,7 @@ export default function App() {
             <Route path="coupons"    element={<CouponManagement />} />
             <Route path="orders"     element={<OrderManagement />} />
             <Route path="reviews"    element={<ReviewManagement />} />
+            <Route path="reports" element={<ReportsPage />} />
           </Route>
 
           {/* 404 */}

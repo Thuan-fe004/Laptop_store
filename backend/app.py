@@ -1,11 +1,16 @@
 import os
 from datetime import datetime
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, request, make_response
 from flask_cors import CORS
 from config import Config
 
 # Import extensions
 from extensions import db, jwt
+
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "https://laptopstore-ten.vercel.app",
+]
 
 
 def create_app():
@@ -17,18 +22,30 @@ def create_app():
     db.init_app(app)
     jwt.init_app(app)
 
-    # ====================== CORS (CẢI THIỆN) ======================
-    CORS(app, resources={r"/*": {   # Cho phép tất cả routes
-        "origins": [
-            "http://localhost:5173",           # Dev React
-            "https://laptopstore-ten.vercel.app",  # Production Vercel
-            "https://*.vercel.app"             # Tất cả vercel subdomains
-        ],
+    # ====================== CORS ======================
+    CORS(app, resources={r"/*": {
+        "origins": ALLOWED_ORIGINS + ["https://*.vercel.app"],
         "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
         "supports_credentials": True,
         "max_age": 3600
     }})
+
+    # ====================== XỬ LÝ PREFLIGHT OPTIONS ======================
+    # Bắt buộc: JWT sẽ chặn OPTIONS request trước khi CORS kịp xử lý
+    # => Phải return 200 sớm cho mọi OPTIONS request
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            origin = request.headers.get("Origin", "")
+            res = make_response()
+            if origin in ALLOWED_ORIGINS or origin.endswith(".vercel.app"):
+                res.headers["Access-Control-Allow-Origin"] = origin
+            res.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
+            res.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
+            res.headers["Access-Control-Allow-Credentials"] = "true"
+            res.headers["Access-Control-Max-Age"] = "3600"
+            return res, 200
 
     # Tạo thư mục upload
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -41,26 +58,30 @@ def create_app():
     from controllers.admin_controller import admin_bp
     from controllers.product_admin_controller import product_admin_bp
     from controllers.user_admin_controller import user_admin_bp
-    from controllers.category_admin_controller import category_admin_bp 
+    from controllers.category_admin_controller import category_admin_bp
     from controllers.coupon_admin_controller import coupon_admin_bp
     from controllers.order_admin_controller import order_admin_bp
     from controllers.review_controller import review_bp
     from routes.chat_routes import chat_bp
+    from controllers.reports_controller import reports_bp
+    from controllers.payment_controller import payment_bp
 
-    app.register_blueprint(auth_bp, url_prefix='/api/auth')
-    app.register_blueprint(product_bp, url_prefix='/api')
-    app.register_blueprint(cart_bp, url_prefix='/api/cart')
-    app.register_blueprint(order_bp, url_prefix='/api/orders')
-    app.register_blueprint(review_bp, url_prefix='/api')
+    app.register_blueprint(auth_bp,           url_prefix='/api/auth')
+    app.register_blueprint(product_bp,         url_prefix='/api')
+    app.register_blueprint(cart_bp,            url_prefix='/api/cart')
+    app.register_blueprint(order_bp,           url_prefix='/api/orders')
+    app.register_blueprint(review_bp,          url_prefix='/api')
     app.register_blueprint(chat_bp)
 
     # Admin blueprints
-    app.register_blueprint(admin_bp, url_prefix='/api/admin')
-    app.register_blueprint(product_admin_bp, url_prefix='/api/admin')
-    app.register_blueprint(user_admin_bp, url_prefix='/api/admin')
-    app.register_blueprint(category_admin_bp, url_prefix='/api/admin')
-    app.register_blueprint(coupon_admin_bp, url_prefix='/api/admin')
-    app.register_blueprint(order_admin_bp, url_prefix='/api/admin')
+    app.register_blueprint(admin_bp,           url_prefix='/api/admin')
+    app.register_blueprint(product_admin_bp,   url_prefix='/api/admin')
+    app.register_blueprint(user_admin_bp,      url_prefix='/api/admin')
+    app.register_blueprint(category_admin_bp,  url_prefix='/api/admin')
+    app.register_blueprint(coupon_admin_bp,    url_prefix='/api/admin')
+    app.register_blueprint(order_admin_bp,     url_prefix='/api/admin')
+    app.register_blueprint(reports_bp,         url_prefix='/api/admin/reports')
+    app.register_blueprint(payment_bp, url_prefix='/api/payment')
 
     # ====================== ROUTES CHÍNH ======================
 
@@ -93,7 +114,6 @@ def create_app():
     # ====================== FALLBACK ROUTE ======================
     @app.errorhandler(404)
     def not_found(e):
-        """Xu ly tat ca cac route khong ton tai"""
         return jsonify({
             "success": False,
             "message": "Endpoint khong ton tai",

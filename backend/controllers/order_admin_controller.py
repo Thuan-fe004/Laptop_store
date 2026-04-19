@@ -250,7 +250,7 @@ def _admin_check():
     return claims.get('role') == 'admin'
 
 # ─── PUT /admin/orders/<id>/payment — xác nhận TT thủ công ─
-@order_admin_bp.route('/admin/orders/<int:order_id>/payment', methods=['PUT'])
+@order_admin_bp.route('/orders/<int:order_id>/payment', methods=['PUT'])
 @jwt_required()
 def update_payment(order_id):
     if not _admin_check():

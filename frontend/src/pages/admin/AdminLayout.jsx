@@ -9,7 +9,9 @@ const NAV_ITEMS = [
   { path: '/admin/users',      icon: '👥', label: 'Người dùng'  },
   { path: '/admin/categories', icon: '🏷️', label: 'Danh mục'    },
   { path: '/admin/coupons',    icon: '🎫', label: 'Mã giảm giá' },
-  { path: '/admin/reviews',    icon: '⭐', label: 'Đánh giá'    },  // ← path đầy đủ
+  { path: '/admin/reviews',    icon: '⭐', label: 'Đánh giá'    },
+  {path: '/admin/reports',     icon: '📑', label: 'Báo cáo chi tiết'},  // ← path đầy đủ
+  
 ];
 
 export default function AdminLayout() {

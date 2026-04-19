@@ -303,16 +303,24 @@ function OrderDetailModal({ order, onClose, onUpdated }) {
                     ? '⚡ COD: tự động cập nhật khi đơn giao thành công. Dùng nút bên dưới nếu cần chỉnh sửa thủ công.'
                     : '📋 Online: admin kiểm tra sao kê ngân hàng / ví rồi xác nhận tại đây.'}
                 </p>
-                <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:12 }}>
+                <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:8 }}>
                   {Object.entries(PAY_CFG).map(([key, cfg]) => (
                     <button key={key} onClick={()=>setNewPay(key)} style={{
-                      padding:'8px 16px', borderRadius:8, border:'none', cursor:'pointer',
+                      padding:'8px 16px', borderRadius:8, cursor:'pointer',
                       fontSize:13, fontWeight:600, transition:'all .15s',
                       background: newPay===key ? cfg.color : '#e5e7eb',
                       color:      newPay===key ? '#fff'    : '#374151',
-                    }}>{cfg.label}</button>
+                      border: key===d.payment_status ? '2px solid #374151' : '2px solid transparent',
+                    }}>
+                      {cfg.label}{key===d.payment_status ? ' ✓' : ''}
+                    </button>
                   ))}
                 </div>
+                {newPay === d.payment_status && (
+                  <p style={{ margin:'0 0 8px', fontSize:12, color:'#6b7280' }}>
+                    👆 Chọn trạng thái <strong>khác</strong> với hiện tại (✓) để kích hoạt nút cập nhật
+                  </p>
+                )}
                 <button onClick={handleUpdatePay}
                   disabled={savingPay || newPay===d.payment_status} style={{
                   padding:'9px 24px', borderRadius:9, border:'none', fontSize:14, fontWeight:700,
