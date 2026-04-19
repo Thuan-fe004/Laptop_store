@@ -3,6 +3,7 @@ import hmac
 import hashlib
 import base64
 import json
+from urllib.parse import quote
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
@@ -11,12 +12,12 @@ payment_bp = Blueprint('payment', __name__)
 
 # ─── CẤU HÌNH SEPAY PAYMENT GATEWAY ─────────────────────
 SEPAY_MERCHANT_ID  = "SP-LIVE-TV245266"
-SEPAY_SECRET_KEY   = "spsk_live_AAwqcEFmEtPoYJ37xKbYAi2Afs8Ukgqk"  # Tab Thông tin đơn vị
-SEPAY_IPN_SECRET   = "Thuan2004@"                                    # Tab IPN
+SEPAY_SECRET_KEY   = "spsk_live_AAwqcEFmEtPoYJ37xKbYAi2Afs8Ukgqk"
+SEPAY_IPN_SECRET   = "Thuan2004@"
 SEPAY_CHECKOUT_URL = "https://pay.sepay.vn/v1/checkout/init"
 FRONTEND_URL       = "https://laptopstore-ten.vercel.app"
 
-# Thứ tự field cố định theo SePay — KHÔNG được thay đổi
+# Thứ tự field cố định theo SePay
 SIGNED_FIELDS = [
     'order_amount', 'merchant', 'currency', 'operation',
     'order_description', 'order_invoice_number', 'customer_id',
@@ -25,12 +26,6 @@ SIGNED_FIELDS = [
 
 
 def generate_signature(data: dict, secret_key: str) -> str:
-    """
-    Chuẩn SePay PG:
-    1. Lọc field trong SIGNED_FIELDS, giữ đúng thứ tự
-    2. Join bằng dấu phẩy: field1=value1,field2=value2
-    3. base64(HMAC-SHA256(chuỗi, secret_key))
-    """
     signed_parts = []
     for field in SIGNED_FIELDS:
         if field in data and data[field] is not None and str(data[field]) != '':
@@ -71,6 +66,11 @@ def create_payment(order_id):
     order_code  = row[1]
     final_price = int(row[2])
 
+    # Dùng URL đơn giản không có query params để tránh vấn đề với signature
+    success_url = f'{FRONTEND_URL}/orders'
+    error_url   = f'{FRONTEND_URL}/orders'
+    cancel_url  = f'{FRONTEND_URL}/checkout'
+
     form_data = {
         'order_amount':         str(final_price),
         'merchant':             SEPAY_MERCHANT_ID,
@@ -79,9 +79,9 @@ def create_payment(order_id):
         'order_description':    f'Thanh toan don hang {order_code}',
         'order_invoice_number': order_code,
         'payment_method':       'BANK_TRANSFER',
-        'success_url':          f'{FRONTEND_URL}/orders?payment=success&order_id={order_id}',
-        'error_url':            f'{FRONTEND_URL}/orders?payment=error&order_id={order_id}',
-        'cancel_url':           f'{FRONTEND_URL}/checkout?payment=cancel',
+        'success_url':          success_url,
+        'error_url':            error_url,
+        'cancel_url':           cancel_url,
     }
 
     form_data['signature'] = generate_signature(form_data, SEPAY_SECRET_KEY)
