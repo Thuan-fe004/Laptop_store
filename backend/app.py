@@ -3,10 +3,10 @@ from datetime import datetime
 from flask import Flask, jsonify, send_from_directory, request, make_response
 from flask_cors import CORS
 from config import Config
-
+from dotenv import load_dotenv
 # Import extensions
 from extensions import db, jwt
-
+load_dotenv(override=True)
 ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "https://laptopstore-ten.vercel.app",
