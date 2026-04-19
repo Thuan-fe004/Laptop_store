@@ -3,21 +3,19 @@ import hmac
 import hashlib
 import base64
 import json
-from urllib.parse import quote
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 
 payment_bp = Blueprint('payment', __name__)
 
-# ─── CẤU HÌNH SEPAY PAYMENT GATEWAY ─────────────────────
 SEPAY_MERCHANT_ID  = "SP-LIVE-TV245266"
 SEPAY_SECRET_KEY   = "spsk_live_AAwqcEFmEtPoYJ37xKbYAi2Afs8Ukgqk"
 SEPAY_IPN_SECRET   = "Thuan2004@"
 SEPAY_CHECKOUT_URL = "https://pay.sepay.vn/v1/checkout/init"
 FRONTEND_URL       = "https://laptopstore-ten.vercel.app"
 
-# Thứ tự field cố định theo SePay
+# Thứ tự field cố định theo SePay — KHÔNG thay đổi
 SIGNED_FIELDS = [
     'order_amount', 'merchant', 'currency', 'operation',
     'order_description', 'order_invoice_number', 'customer_id',
@@ -30,20 +28,16 @@ def generate_signature(data: dict, secret_key: str) -> str:
     for field in SIGNED_FIELDS:
         if field in data and data[field] is not None and str(data[field]) != '':
             signed_parts.append(f"{field}={data[field]}")
-
     signed_string = ','.join(signed_parts)
     print(f"[SEPAY] Signed string: {signed_string}")
-
     raw_hmac = hmac.new(
         secret_key.encode('utf-8'),
         signed_string.encode('utf-8'),
         hashlib.sha256
     ).digest()
-
     return base64.b64encode(raw_hmac).decode('utf-8')
 
 
-# ─── POST /api/payment/create/<order_id> ─────────────────
 @payment_bp.route('/create/<int:order_id>', methods=['POST'])
 @jwt_required()
 def create_payment(order_id):
@@ -66,22 +60,17 @@ def create_payment(order_id):
     order_code  = row[1]
     final_price = int(row[2])
 
-    # Dùng URL đơn giản không có query params để tránh vấn đề với signature
-    success_url = f'{FRONTEND_URL}/orders'
-    error_url   = f'{FRONTEND_URL}/orders'
-    cancel_url  = f'{FRONTEND_URL}/checkout'
-
+    # Chỉ dùng các field bắt buộc — bỏ payment_method và customer_id
     form_data = {
         'order_amount':         str(final_price),
         'merchant':             SEPAY_MERCHANT_ID,
         'currency':             'VND',
         'operation':            'PURCHASE',
-        'order_description':    f'Thanh toan don hang {order_code}',
+        'order_description':    f'Thanh toan {order_code}',
         'order_invoice_number': order_code,
-        'payment_method':       'BANK_TRANSFER',
-        'success_url':          success_url,
-        'error_url':            error_url,
-        'cancel_url':           cancel_url,
+        'success_url':          f'{FRONTEND_URL}/orders',
+        'error_url':            f'{FRONTEND_URL}/orders',
+        'cancel_url':           f'{FRONTEND_URL}/checkout',
     }
 
     form_data['signature'] = generate_signature(form_data, SEPAY_SECRET_KEY)
@@ -97,25 +86,20 @@ def create_payment(order_id):
     })
 
 
-# ─── GET /api/payment/status/<order_id> ──────────────────
 @payment_bp.route('/status/<int:order_id>', methods=['GET'])
 @jwt_required()
 def check_payment_status(order_id):
     user_id = int(get_jwt_identity())
-
     row = db.session.execute(db.text("""
         SELECT payment_status, user_id FROM orders WHERE id = :oid
     """), {'oid': order_id}).fetchone()
-
     if not row:
         return jsonify({'success': False, 'message': 'Không tìm thấy đơn hàng'}), 404
     if int(row[1]) != user_id:
         return jsonify({'success': False, 'message': 'Không có quyền truy cập'}), 403
-
     return jsonify({'success': True, 'order_id': order_id, 'payment_status': row[0]})
 
 
-# ─── POST /api/payment/ipn ────────────────────────────────
 @payment_bp.route('/ipn', methods=['POST'])
 def sepay_ipn():
     data = request.get_json(force=True, silent=True) or {}
@@ -127,7 +111,6 @@ def sepay_ipn():
     order_data     = data.get('order', {})
     invoice_number = order_data.get('order_invoice_number', '')
     order_status   = order_data.get('order_status', '')
-
     print(f"[IPN] invoice={invoice_number}, status={order_status}")
 
     if order_status != 'CAPTURED':
