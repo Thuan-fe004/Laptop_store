@@ -432,7 +432,20 @@ export default function OrdersPage() {
     } catch { toast.error('Không thể tải đơn hàng') }
     finally  { setLoading(false) }
   }
-
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const paymentResult = params.get('payment')
+    const orderId       = params.get('order_id')
+  
+    if (paymentResult === 'success') {
+      toast.success('🎉 Thanh toán thành công! Đơn hàng đã được xác nhận.')
+      // Xóa query params khỏi URL cho sạch
+      window.history.replaceState({}, '', '/orders')
+    } else if (paymentResult === 'error') {
+      toast.error('❌ Thanh toán thất bại. Vui lòng thử lại hoặc chọn phương thức khác.')
+      window.history.replaceState({}, '', '/orders')
+    }
+  }, [])
   useEffect(() => {
     if (!user) { navigate('/login'); return }
     load()

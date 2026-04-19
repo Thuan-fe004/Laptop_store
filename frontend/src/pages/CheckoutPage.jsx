@@ -1,5 +1,5 @@
 // src/pages/CheckoutPage.jsx
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import api from '../services/api'
@@ -407,8 +407,7 @@ export default function CheckoutPage() {
   const [placing, setPlacing] = useState(false)
   const [orderInfo, setOrderInfo] = useState(null) // { orderId, orderCode }
 
-  // QR modal state
-  const [showQR,   setShowQR]   = useState(false)
+  // QR modal state (không dùng nữa — đã chuyển sang SePay PG)
   // Bill modal state
   const [showBill, setShowBill] = useState(false)
 
@@ -440,6 +439,15 @@ export default function CheckoutPage() {
       }
     }).catch(() => {}).finally(() => setLoading(false))
   }, [user])
+
+  // Xử lý khi SePay redirect về /checkout?payment=cancel
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('payment') === 'cancel') {
+      toast.warning('⚠️ Bạn đã hủy thanh toán. Đơn hàng vẫn được giữ lại.')
+      window.history.replaceState({}, '', '/checkout')
+    }
+  }, [])
 
   const subtotal  = items.reduce((s, it) => s + (it.sale_price || it.price) * it.quantity, 0)
   const SHIP_FREE = 10_000_000
@@ -476,42 +484,47 @@ export default function CheckoutPage() {
   }
 
   const placeOrder = async () => {
-    if (!validateForm()) { setStep(1); toast.error('Vui lòng điền đầy đủ thông tin giao hàng'); return }
-    setPlacing(true)
+  if (!validateForm()) { setStep(1); toast.error('Vui lòng điền đầy đủ thông tin giao hàng'); return }
+  setPlacing(true)
     try {
       const selectedProductIds = items.map(it => it.product_id)
+  
+      // Bước 1: Tạo đơn hàng
       const res = await api.post('/orders', {
         shipping_info:        form,
         payment_method:       payment,
         coupon_code:          coupon ? couponCode : null,
         selected_product_ids: selectedProductIds,
       }, { headers: { 'Content-Type': 'application/json' } })
-
+  
       const { order_id, order_code } = res.data
       setOrderInfo({ orderId: order_id, orderCode: order_code })
       sessionStorage.removeItem('checkout_selected')
-
+  
       if (payment === 'transfer') {
-        // Chuyển khoản → hiện QR modal, chưa chuyển sang step 3
-        setShowQR(true)
-        toast.info('🏦 Quét mã QR để hoàn tất thanh toán')
+        // Bước 2: Gọi API tạo phiên thanh toán SePay → nhận checkout_url
+        toast.info('🏦 Đang tạo phiên thanh toán...')
+        const payRes = await api.post(`/payment/create/${order_id}`)
+  
+        if (payRes.data.success && payRes.data.checkout_url) {
+          // Bước 3: Redirect sang trang thanh toán SePay
+          // SePay sẽ hiện QR, xác nhận tự động, rồi redirect về success_url
+          window.location.href = payRes.data.checkout_url
+        } else {
+          toast.error('Không thể tạo phiên thanh toán, vui lòng thử lại')
+          setPlacing(false)
+        }
       } else {
         // COD / MoMo / VNPay → thành công ngay
         setStep(3)
         toast.success('🎉 Đặt hàng thành công!')
+        setPlacing(false)
       }
     } catch (e) {
       toast.error(e.response?.data?.message || 'Đặt hàng thất bại, vui lòng thử lại')
-    } finally { setPlacing(false) }
+      setPlacing(false)
+    }
   }
-
-  // Callback khi QR xác nhận thành công
-  const handleQRSuccess = useCallback(() => {
-    setShowQR(false)
-    setStep(3)
-    toast.success('🎉 Thanh toán thành công! Đơn hàng đã được xác nhận.')
-  }, [])
-
   const setF = (key, val) => { setForm(f => ({ ...f, [key]: val })); setFormErrors(e => ({ ...e, [key]: '' })) }
 
   if (loading) return (
@@ -542,16 +555,6 @@ export default function CheckoutPage() {
         * { box-sizing: border-box }
         input:focus,select:focus,textarea:focus { border-color:#2563eb !important;box-shadow:0 0 0 3px rgba(37,99,235,.12) !important;outline:none }
       `}</style>
-
-      {/* QR Modal */}
-      {showQR && orderInfo && (
-        <QRPaymentModal
-          orderId={orderInfo.orderId}
-          orderCode={orderInfo.orderCode}
-          amount={total}
-          onSuccess={handleQRSuccess}
-        />
-      )}
 
       {/* Bill Modal */}
       {showBill && orderInfo && (

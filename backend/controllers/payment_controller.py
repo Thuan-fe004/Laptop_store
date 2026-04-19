@@ -1,181 +1,167 @@
 # controllers/payment_controller.py
 import hmac
 import hashlib
-import re
+import requests as http_requests
+import json
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from extensions import db
 
 payment_bp = Blueprint('payment', __name__)
 
-# ─── CẤU HÌNH TÀI KHOẢN MB BANK ─────────────────────────
-BANK_ID      = "MB"
-ACCOUNT_NO   = "0867845804"
-ACCOUNT_NAME = "TRAN VAN THUAN"
+# ─── CẤU HÌNH SEPAY PAYMENT GATEWAY ─────────────────────
+SEPAY_MERCHANT_ID  = "SP-LIVE-TV245266"
+SEPAY_SECRET_KEY   = "Thuan2004@"          # ← Thay bằng secret key đầy đủ của bạn
+SEPAY_CHECKOUT_URL = "https://pay.sepay.vn/v1/checkout/init"
 
-# ─── SECRET KEY SEPAY ────────────────────────────────────
-# Vào sepay.vn → Webhooks → API Key/Secret → dán vào đây
-SEPAY_SECRET = "YOUR_SEPAY_WEBHOOK_SECRET"
-
-
-# ─── HELPER ──────────────────────────────────────────────
-def make_transfer_content(order_id: int) -> str:
-    """VD: order_id=123 → 'LAPTOP123' — SePay gửi lại chuỗi này trong field 'content'"""
-    return f"LAPTOP{order_id}"
+# ─── URL frontend để redirect sau thanh toán ─────────────
+FRONTEND_URL = "https://laptopstore-ten.vercel.app"
 
 
-def extract_order_id_from_content(content: str):
-    """Parse nội dung CK để tìm order_id từ pattern LAPTOP<số>"""
-    match = re.search(r'LAPTOP(\d+)', content.upper())
-    return int(match.group(1)) if match else None
+def generate_signature(data: dict, secret_key: str) -> str:
+    """Tạo chữ ký HMAC-SHA256 theo chuẩn SePay PG"""
+    filtered = {k: v for k, v in data.items() if v is not None and v != '' and k != 'signature'}
+    sorted_keys = sorted(filtered.keys())
+    query_string = '&'.join(f"{k}={filtered[k]}" for k in sorted_keys)
+    return hmac.new(
+        secret_key.encode('utf-8'),
+        query_string.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
 
 
-# ─── GET /api/payment/qr/<order_id> ──────────────────────
-@payment_bp.route('/qr/<int:order_id>', methods=['GET'])
+def verify_ipn_signature(data: dict, secret_key: str) -> bool:
+    """Xác thực chữ ký IPN từ SePay"""
+    received_signature = data.get('signature', '')
+    expected_signature = generate_signature(data, secret_key)
+    return hmac.compare_digest(received_signature, expected_signature)
+
+
+# ─── POST /api/payment/create/<order_id> ─────────────────
+# Frontend gọi sau khi đặt hàng → nhận checkout_url → redirect sang SePay
+@payment_bp.route('/create/<int:order_id>', methods=['POST'])
 @jwt_required()
-def get_payment_qr(order_id):
+def create_payment(order_id):
     user_id = int(get_jwt_identity())
 
-    # ✅ FIX: Lấy cả user_id từ DB, so sánh bằng Python thay vì SQL
-    # Tránh type mismatch khi JWT identity là string
     row = db.session.execute(db.text("""
-        SELECT id, final_price, payment_status, payment_method, user_id
-        FROM orders
-        WHERE id = :oid
+        SELECT id, order_code, final_price, payment_status, payment_method, user_id
+        FROM orders WHERE id = :oid
     """), {'oid': order_id}).fetchone()
 
     if not row:
         return jsonify({'success': False, 'message': 'Không tìm thấy đơn hàng'}), 404
+    if int(row[5]) != user_id:
+        return jsonify({'success': False, 'message': 'Không có quyền truy cập'}), 403
+    if row[3] == 'paid':
+        return jsonify({'success': True, 'already_paid': True})
+    if row[4] != 'transfer':
+        return jsonify({'success': False, 'message': 'Đơn hàng không dùng chuyển khoản'}), 400
 
-    # Kiểm tra ownership bằng Python
-    if int(row[4]) != user_id:
-        return jsonify({'success': False, 'message': 'Không có quyền truy cập đơn hàng này'}), 403
+    order_code  = row[1]
+    final_price = int(row[2])
 
-    if row[2] == 'paid':
-        return jsonify({'success': True, 'already_paid': True, 'message': 'Đơn hàng đã được thanh toán'})
+    payload = {
+        'merchantId':         SEPAY_MERCHANT_ID,
+        'orderInvoiceNumber': order_code,
+        'orderAmount':        final_price,
+        'orderCurrency':      'VND',
+        'orderDescription':   f'Thanh toan don hang {order_code}',
+        'operation':          'PURCHASE',
+        'successUrl':         f'{FRONTEND_URL}/orders?payment=success&order_id={order_id}',
+        'errorUrl':           f'{FRONTEND_URL}/orders?payment=error&order_id={order_id}',
+        'cancelUrl':          f'{FRONTEND_URL}/checkout?payment=cancel',
+    }
+    payload['signature'] = generate_signature(payload, SEPAY_SECRET_KEY)
 
-    if row[3] != 'transfer':
-        return jsonify({'success': False, 'message': 'Đơn hàng này không dùng chuyển khoản'}), 400
+    try:
+        resp      = http_requests.post(SEPAY_CHECKOUT_URL, json=payload, timeout=15)
+        resp_data = resp.json()
 
-    amount      = int(row[1])
-    description = make_transfer_content(order_id)
+        if resp.status_code == 200 and resp_data.get('code') == '00':
+            checkout_url = (
+                resp_data.get('checkoutUrl') or
+                resp_data.get('data', {}).get('checkoutUrl')
+            )
+            return jsonify({'success': True, 'checkout_url': checkout_url, 'order_code': order_code})
+        else:
+            print(f"[SEPAY] Lỗi: {resp_data}")
+            return jsonify({'success': False, 'message': resp_data.get('message', 'Lỗi SePay'), 'detail': resp_data}), 400
 
-    qr_url = (
-        f"https://img.vietqr.io/image/{BANK_ID}-{ACCOUNT_NO}-compact2.png"
-        f"?amount={amount}"
-        f"&addInfo={description}"
-        f"&accountName={ACCOUNT_NAME.replace(' ', '%20')}"
-    )
-
-    return jsonify({
-        'success':      True,
-        'already_paid': False,
-        'qr_url':       qr_url,
-        'amount':       amount,
-        'description':  description,
-        'account_no':   ACCOUNT_NO,
-        'account_name': ACCOUNT_NAME,
-        'bank':         'MB Bank',
-        'bank_id':      BANK_ID,
-    })
+    except Exception as e:
+        print(f"[SEPAY] Exception: {e}")
+        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 # ─── GET /api/payment/status/<order_id> ──────────────────
-# Frontend polling mỗi 5 giây để kiểm tra đã thanh toán chưa
+# Frontend polling mỗi 3 giây để check đã paid chưa
 @payment_bp.route('/status/<int:order_id>', methods=['GET'])
 @jwt_required()
 def check_payment_status(order_id):
     user_id = int(get_jwt_identity())
 
-    # ✅ FIX: Tương tự — lấy user_id ra so sánh bằng Python
     row = db.session.execute(db.text("""
-        SELECT payment_status, user_id FROM orders
-        WHERE id = :oid
+        SELECT payment_status, user_id FROM orders WHERE id = :oid
     """), {'oid': order_id}).fetchone()
 
     if not row:
         return jsonify({'success': False, 'message': 'Không tìm thấy đơn hàng'}), 404
-
     if int(row[1]) != user_id:
         return jsonify({'success': False, 'message': 'Không có quyền truy cập'}), 403
 
-    return jsonify({
-        'success':        True,
-        'order_id':       order_id,
-        'payment_status': row[0],   # 'unpaid' | 'paid'
-    })
+    return jsonify({'success': True, 'order_id': order_id, 'payment_status': row[0]})
 
 
-# ─── POST /api/payment/webhook ───────────────────────────
-# SePay gọi endpoint này mỗi khi có tiền vào tài khoản MB Bank
-# Không cần JWT — SePay xác thực bằng chữ ký HMAC-SHA256
-@payment_bp.route('/webhook', methods=['POST'])
-def sepay_webhook():
-    # ── Bước 1: Xác thực chữ ký từ SePay ────────────────
-    if SEPAY_SECRET and SEPAY_SECRET != "YOUR_SEPAY_WEBHOOK_SECRET":
-        signature = request.headers.get('X-Webhook-Signature', '')
-        raw_body  = request.get_data()  # bytes, không decode
-
-        # ✅ FIX: dùng hmac.new() đúng cách với bytes
-        expected = hmac.new(
-            SEPAY_SECRET.encode('utf-8'),
-            raw_body,                   # bytes trực tiếp, không encode lại
-            digestmod=hashlib.sha256
-        ).hexdigest()
-
-        if not hmac.compare_digest(signature, expected):
-            return jsonify({'success': False, 'message': 'Invalid signature'}), 401
-
-    # ── Bước 2: Đọc dữ liệu SePay gửi về ────────────────
+# ─── POST /api/payment/ipn ────────────────────────────────
+# SePay tự động gọi endpoint này khi có giao dịch thành công
+# Không cần JWT — SePay xác thực bằng chữ ký
+@payment_bp.route('/ipn', methods=['POST'])
+def sepay_ipn():
     data = request.get_json(force=True, silent=True) or {}
+    print(f"[IPN] Nhận từ SePay: {json.dumps(data, ensure_ascii=False)}")
 
-    amount  = data.get('transferAmount') or data.get('amount', 0)
-    content = data.get('content', '')
+    # Xác thực chữ ký
+    if not verify_ipn_signature(data, SEPAY_SECRET_KEY):
+        print("[IPN] ❌ Chữ ký không hợp lệ!")
+        return jsonify({'success': False, 'message': 'Invalid signature'}), 401
 
-    # ── Bước 3: Tìm order_id từ nội dung chuyển khoản ───
-    order_id = extract_order_id_from_content(content)
+    notification_type = data.get('notification_type', '')
+    if notification_type != 'ORDER_PAID':
+        return jsonify({'success': True, 'message': 'Bỏ qua'}), 200
 
-    if not order_id:
-        # Không phải giao dịch của shop → trả 200 để SePay không retry
-        return jsonify({'success': True, 'message': 'Không tìm thấy đơn hàng phù hợp'}), 200
+    order_data     = data.get('order', {})
+    invoice_number = order_data.get('order_invoice_number', '')  # = order_code
+    order_status   = order_data.get('order_status', '')
 
-    # ── Bước 4: Kiểm tra đơn hàng và số tiền ────────────
+    print(f"[IPN] invoice={invoice_number}, status={order_status}")
+
+    if order_status != 'CAPTURED':
+        return jsonify({'success': True, 'message': 'Chưa hoàn tất'}), 200
+
+    # Tìm đơn theo order_code
     row = db.session.execute(db.text("""
-        SELECT id, final_price, payment_status FROM orders
-        WHERE id = :oid
-    """), {'oid': order_id}).fetchone()
+        SELECT id, payment_status FROM orders WHERE order_code = :code
+    """), {'code': invoice_number}).fetchone()
 
     if not row:
-        return jsonify({'success': True, 'message': 'Order không tồn tại'}), 200
+        print(f"[IPN] Không tìm thấy đơn: {invoice_number}")
+        return jsonify({'success': True, 'message': 'Không tìm thấy đơn'}), 200
 
-    if row[2] == 'paid':
-        # Idempotent — đã xử lý rồi
-        return jsonify({'success': True, 'message': 'Đã xử lý trước đó'}), 200
+    if row[1] == 'paid':
+        return jsonify({'success': True, 'message': 'Đã xử lý rồi'}), 200
 
-    required_amount = int(row[1])
-    paid_amount     = int(amount)
-
-    if paid_amount < required_amount:
-        print(f"[PAYMENT] Order #{order_id}: cần {required_amount:,}đ, nhận {paid_amount:,}đ — BỎ QUA")
-        return jsonify({'success': True, 'message': 'Số tiền không khớp'}), 200
-
-    # ── Bước 5: Cập nhật trạng thái — tự động xác nhận ──
     try:
         db.session.execute(db.text("""
             UPDATE orders
             SET payment_status = 'paid',
                 status = CASE WHEN status = 'pending' THEN 'processing' ELSE status END
             WHERE id = :oid
-        """), {'oid': order_id})
+        """), {'oid': row[0]})
         db.session.commit()
-
-        print(f"[PAYMENT] ✅ Order #{order_id} thanh toán thành công ({paid_amount:,}đ)")
-
-        # Frontend đang polling /api/payment/status/{order_id} mỗi 5s
-        # Khi thấy payment_status='paid' → tự động đóng QR modal → hiện Bill
-        return jsonify({'success': True, 'message': f'Xác nhận thanh toán đơn #{order_id} thành công'}), 200
+        print(f"[IPN] ✅ Đơn #{row[0]} ({invoice_number}) đã thanh toán!")
+        return jsonify({'success': True, 'message': 'OK'}), 200
 
     except Exception as e:
         db.session.rollback()
-        print(f"[PAYMENT] ❌ Lỗi cập nhật order #{order_id}: {e}")
+        print(f"[IPN] ❌ Lỗi: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
