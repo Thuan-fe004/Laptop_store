@@ -1,7 +1,6 @@
 # controllers/payment_controller.py
 import hmac
 import hashlib
-import requests as http_requests
 import json
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -13,10 +12,10 @@ payment_bp = Blueprint('payment', __name__)
 SEPAY_MERCHANT_ID  = "SP-LIVE-TV245266"
 
 # Lấy từ tab "Thông tin đơn vị"
-SEPAY_SECRET_KEY   = "spsk_live_AAwqcEFmEtPoYJ37xKbYAi2Afs8Ukgqk"  # ← điền đầy đủ
+SEPAY_SECRET_KEY   = "spsk_live_AAwqcEFmEtPoYJ37xKbYAi2Afs8*****"  # ← điền đầy đủ
 
 # Bạn tự đặt trong tab "IPN"
-SEPAY_IPN_SECRET   = "Thuan2004@"   # ← điền đầy đủ
+SEPAY_IPN_SECRET   = "Thuan****@"   # ← điền đầy đủ
 
 # URL Production của SePay PG
 SEPAY_CHECKOUT_URL = "https://pay.sepay.vn/v1/checkout/init"
@@ -50,55 +49,51 @@ def verify_ipn_signature(data: dict, secret_key: str) -> bool:
 @jwt_required()
 def create_payment(order_id):
     user_id = int(get_jwt_identity())
-    try:
 
-        row = db.session.execute(db.text("""
-            SELECT id, order_code, final_price, payment_status, payment_method, user_id
-            FROM orders WHERE id = :oid
-        """), {'oid': order_id}).fetchone()
+    row = db.session.execute(db.text("""
+        SELECT id, order_code, final_price, payment_status, payment_method, user_id
+        FROM orders WHERE id = :oid
+    """), {'oid': order_id}).fetchone()
 
-        if not row:
-            return jsonify({'success': False, 'message': 'Không tìm thấy đơn hàng'}), 404
-        if int(row[5]) != user_id:
-            return jsonify({'success': False, 'message': 'Không có quyền truy cập'}), 403
-        if row[3] == 'paid':
-            return jsonify({'success': True, 'already_paid': True})
-        if row[4] != 'transfer':
-            return jsonify({'success': False, 'message': 'Đơn hàng không dùng chuyển khoản'}), 400
+    if not row:
+        return jsonify({'success': False, 'message': 'Không tìm thấy đơn hàng'}), 404
+    if int(row[5]) != user_id:
+        return jsonify({'success': False, 'message': 'Không có quyền truy cập'}), 403
+    if row[3] == 'paid':
+        return jsonify({'success': True, 'already_paid': True})
+    if row[4] != 'transfer':
+        return jsonify({'success': False, 'message': 'Đơn hàng không dùng chuyển khoản'}), 400
 
-        order_code  = row[1]
-        final_price = int(row[2])
+    order_code  = row[1]
+    final_price = int(row[2])
 
-        # Tạo form fields theo chuẩn SePay PG
-        form_data = {
-            'merchant_id':          SEPAY_MERCHANT_ID,
-            'order_invoice_number': order_code,
-            'order_amount':         final_price,
-            'order_currency':       'VND',
-            'order_description':    f'Thanh toan don hang {order_code}',
-            'operation':            'PURCHASE',
-            'success_url':          f'{FRONTEND_URL}/orders?payment=success&order_id={order_id}',
-            'error_url':            f'{FRONTEND_URL}/orders?payment=error&order_id={order_id}',
-            'cancel_url':           f'{FRONTEND_URL}/checkout?payment=cancel',
-        }
+    # Tạo form fields theo chuẩn SePay PG
+    form_data = {
+        'merchant_id':          SEPAY_MERCHANT_ID,
+        'order_invoice_number': order_code,
+        'order_amount':         final_price,
+        'order_currency':       'VND',
+        'order_description':    f'Thanh toan don hang {order_code}',
+        'operation':            'PURCHASE',
+        'success_url':          f'{FRONTEND_URL}/orders?payment=success&order_id={order_id}',
+        'error_url':            f'{FRONTEND_URL}/orders?payment=error&order_id={order_id}',
+        'cancel_url':           f'{FRONTEND_URL}/checkout?payment=cancel',
+    }
 
-        # Tạo chữ ký
-        form_data['signature'] = generate_signature(form_data, SEPAY_SECRET_KEY)
+    # Tạo chữ ký
+    form_data['signature'] = generate_signature(form_data, SEPAY_SECRET_KEY)
 
-        print(f"[SEPAY] Form fields tạo xong cho đơn {order_code}")
+    print(f"[SEPAY] Form fields tạo xong cho đơn {order_code}")
 
-        # Trả về frontend để tự POST form lên SePay
-        return jsonify({
-            'success':    True,
-            'use_form':   True,
-            'action_url': SEPAY_CHECKOUT_URL,
-            'form_fields': form_data,
-            'order_code': order_code,
-        })
+    # Trả về frontend để tự POST form lên SePay
+    return jsonify({
+        'success':    True,
+        'use_form':   True,
+        'action_url': SEPAY_CHECKOUT_URL,
+        'form_fields': form_data,
+        'order_code': order_code,
+    })
 
-    except Exception as e:
-        print(f"[SEPAY] Exception: {e}")
-        return jsonify({'success': False, 'message': str(e)}), 500
 
 
 # ─── GET /api/payment/status/<order_id> ──────────────────
