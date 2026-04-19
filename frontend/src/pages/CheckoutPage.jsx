@@ -507,9 +507,25 @@ export default function CheckoutPage() {
         const payRes = await api.post(`/payment/create/${order_id}`)
   
         if (payRes.data.success && payRes.data.checkout_url) {
-          // Bước 3: Redirect sang trang thanh toán SePay
-          // SePay sẽ hiện QR, xác nhận tự động, rồi redirect về success_url
+          // SePay trả về link → redirect thẳng
           window.location.href = payRes.data.checkout_url
+
+        } else if (payRes.data.success && payRes.data.use_form) {
+          // SePay yêu cầu POST form → tạo form ẩn và submit
+          const { action_url, form_fields } = payRes.data
+          const f = document.createElement('form')
+          f.method = 'POST'
+          f.action = action_url
+          Object.entries(form_fields).forEach(([key, value]) => {
+            const input = document.createElement('input')
+            input.type  = 'hidden'
+            input.name  = key
+            input.value = value
+            f.appendChild(input)
+          })
+          document.body.appendChild(f)
+          f.submit()
+
         } else {
           toast.error('Không thể tạo phiên thanh toán, vui lòng thử lại')
           setPlacing(false)
