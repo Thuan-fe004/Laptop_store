@@ -1,6 +1,7 @@
 # controllers/payment_controller.py
 import hmac
 import hashlib
+import base64
 import json
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
@@ -10,41 +11,44 @@ payment_bp = Blueprint('payment', __name__)
 
 # ─── CẤU HÌNH SEPAY PAYMENT GATEWAY ─────────────────────
 SEPAY_MERCHANT_ID  = "SP-LIVE-TV245266"
+SEPAY_SECRET_KEY   = "spsk_live_AAwqcEFmEtPoYJ37xKbYAi2Afs8Ukgqk"  # Tab Thông tin đơn vị
+SEPAY_IPN_SECRET   = "Thuan2004@"                                    # Tab IPN
+SEPAY_CHECKOUT_URL = "https://pay.sepay.vn/v1/checkout/init"
+FRONTEND_URL       = "https://laptopstore-ten.vercel.app"
 
-# Lấy từ tab "Thông tin đơn vị"
-SEPAY_SECRET_KEY   = "spsk_live_AAwqcEFmEtPoYJ37xKbYAi2Afs8Ukgqk"  # ← điền đầy đủ
-
-# Bạn tự đặt trong tab "IPN"
-SEPAY_IPN_SECRET   = "Thuan2004@"   # ← điền đầy đủ
-
-# URL Production của SePay PG (đúng)
-SEPAY_CHECKOUT_URL = "https://pgapi.sepay.vn/v1/checkout/init"
-
-# ─── URL frontend để redirect sau thanh toán ─────────────
-FRONTEND_URL = "https://laptopstore-ten.vercel.app"
+# Thứ tự field cố định theo SePay — KHÔNG được thay đổi
+SIGNED_FIELDS = [
+    'order_amount', 'merchant', 'currency', 'operation',
+    'order_description', 'order_invoice_number', 'customer_id',
+    'payment_method', 'success_url', 'error_url', 'cancel_url',
+]
 
 
 def generate_signature(data: dict, secret_key: str) -> str:
-    """Tạo chữ ký HMAC-SHA256 theo chuẩn SePay PG"""
-    filtered = {k: v for k, v in data.items() if v is not None and v != '' and k != 'signature'}
-    sorted_keys = sorted(filtered.keys())
-    query_string = '&'.join(f"{k}={filtered[k]}" for k in sorted_keys)
-    return hmac.new(
+    """
+    Chuẩn SePay PG:
+    1. Lọc field trong SIGNED_FIELDS, giữ đúng thứ tự
+    2. Join bằng dấu phẩy: field1=value1,field2=value2
+    3. base64(HMAC-SHA256(chuỗi, secret_key))
+    """
+    signed_parts = []
+    for field in SIGNED_FIELDS:
+        if field in data and data[field] is not None and str(data[field]) != '':
+            signed_parts.append(f"{field}={data[field]}")
+
+    signed_string = ','.join(signed_parts)
+    print(f"[SEPAY] Signed string: {signed_string}")
+
+    raw_hmac = hmac.new(
         secret_key.encode('utf-8'),
-        query_string.encode('utf-8'),
+        signed_string.encode('utf-8'),
         hashlib.sha256
-    ).hexdigest()
+    ).digest()
 
-
-def verify_ipn_signature(data: dict, secret_key: str) -> bool:
-    """Xác thực chữ ký IPN từ SePay"""
-    received_signature = data.get('signature', '')
-    expected_signature = generate_signature(data, secret_key)
-    return hmac.compare_digest(received_signature, expected_signature)
+    return base64.b64encode(raw_hmac).decode('utf-8')
 
 
 # ─── POST /api/payment/create/<order_id> ─────────────────
-# Frontend gọi sau khi đặt hàng → nhận checkout_url → redirect sang SePay
 @payment_bp.route('/create/<int:order_id>', methods=['POST'])
 @jwt_required()
 def create_payment(order_id):
@@ -67,37 +71,33 @@ def create_payment(order_id):
     order_code  = row[1]
     final_price = int(row[2])
 
-    # Tạo form fields theo chuẩn SePay PG
     form_data = {
-        'merchant_id':          SEPAY_MERCHANT_ID,
-        'order_invoice_number': order_code,
-        'order_amount':         final_price,
-        'order_currency':       'VND',
-        'order_description':    f'Thanh toan don hang {order_code}',
+        'order_amount':         str(final_price),
+        'merchant':             SEPAY_MERCHANT_ID,
+        'currency':             'VND',
         'operation':            'PURCHASE',
+        'order_description':    f'Thanh toan don hang {order_code}',
+        'order_invoice_number': order_code,
+        'payment_method':       'BANK_TRANSFER',
         'success_url':          f'{FRONTEND_URL}/orders?payment=success&order_id={order_id}',
         'error_url':            f'{FRONTEND_URL}/orders?payment=error&order_id={order_id}',
         'cancel_url':           f'{FRONTEND_URL}/checkout?payment=cancel',
     }
 
-    # Tạo chữ ký
     form_data['signature'] = generate_signature(form_data, SEPAY_SECRET_KEY)
+    print(f"[SEPAY] Signature: {form_data['signature']}")
+    print(f"[SEPAY] Form tạo xong cho đơn {order_code}")
 
-    print(f"[SEPAY] Form fields tạo xong cho đơn {order_code}")
-
-    # Trả về frontend để tự POST form lên SePay
     return jsonify({
-        'success':    True,
-        'use_form':   True,
-        'action_url': SEPAY_CHECKOUT_URL,
+        'success':     True,
+        'use_form':    True,
+        'action_url':  SEPAY_CHECKOUT_URL,
         'form_fields': form_data,
-        'order_code': order_code,
+        'order_code':  order_code,
     })
 
 
-
 # ─── GET /api/payment/status/<order_id> ──────────────────
-# Frontend polling mỗi 3 giây để check đã paid chưa
 @payment_bp.route('/status/<int:order_id>', methods=['GET'])
 @jwt_required()
 def check_payment_status(order_id):
@@ -116,24 +116,16 @@ def check_payment_status(order_id):
 
 
 # ─── POST /api/payment/ipn ────────────────────────────────
-# SePay tự động gọi endpoint này khi có giao dịch thành công
-# Không cần JWT — SePay xác thực bằng chữ ký
 @payment_bp.route('/ipn', methods=['POST'])
 def sepay_ipn():
     data = request.get_json(force=True, silent=True) or {}
     print(f"[IPN] Nhận từ SePay: {json.dumps(data, ensure_ascii=False)}")
 
-    # Xác thực chữ ký IPN
-    if not verify_ipn_signature(data, SEPAY_IPN_SECRET):
-        print("[IPN] ❌ Chữ ký không hợp lệ!")
-        return jsonify({'success': False, 'message': 'Invalid signature'}), 401
-
-    notification_type = data.get('notification_type', '')
-    if notification_type != 'ORDER_PAID':
+    if data.get('notification_type') != 'ORDER_PAID':
         return jsonify({'success': True, 'message': 'Bỏ qua'}), 200
 
     order_data     = data.get('order', {})
-    invoice_number = order_data.get('order_invoice_number', '')  # = order_code
+    invoice_number = order_data.get('order_invoice_number', '')
     order_status   = order_data.get('order_status', '')
 
     print(f"[IPN] invoice={invoice_number}, status={order_status}")
@@ -141,15 +133,12 @@ def sepay_ipn():
     if order_status != 'CAPTURED':
         return jsonify({'success': True, 'message': 'Chưa hoàn tất'}), 200
 
-    # Tìm đơn theo order_code
     row = db.session.execute(db.text("""
         SELECT id, payment_status FROM orders WHERE order_code = :code
     """), {'code': invoice_number}).fetchone()
 
     if not row:
-        print(f"[IPN] Không tìm thấy đơn: {invoice_number}")
         return jsonify({'success': True, 'message': 'Không tìm thấy đơn'}), 200
-
     if row[1] == 'paid':
         return jsonify({'success': True, 'message': 'Đã xử lý rồi'}), 200
 
@@ -163,7 +152,6 @@ def sepay_ipn():
         db.session.commit()
         print(f"[IPN] ✅ Đơn #{row[0]} ({invoice_number}) đã thanh toán!")
         return jsonify({'success': True, 'message': 'OK'}), 200
-
     except Exception as e:
         db.session.rollback()
         print(f"[IPN] ❌ Lỗi: {e}")
