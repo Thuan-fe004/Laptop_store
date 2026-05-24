@@ -185,7 +185,7 @@ function HeroSlider() {
   const s = SLIDES[cur]
 
   return (
-    <section style={{
+    <section className="hero-section" style={{
       background: s.bg,
       padding: '72px 24px',
       position: 'relative', overflow: 'hidden',
@@ -200,20 +200,20 @@ function HeroSlider() {
 
       <div style={{ maxWidth:1280, margin:'0 auto', display:'flex', alignItems:'center', gap:48, position:'relative', zIndex:1 }}>
         {/* Text side */}
-        <div style={{ flex:1, opacity: anim?1:0, transform: anim?'none':'translateX(-20px)', transition:'all 0.5s ease' }}>
+        <div className="hero-text" style={{ flex:1, opacity: anim?1:0, transform: anim?'none':'translateX(-20px)', transition:'all 0.5s ease' }}>
           <span style={{
             display:'inline-block', padding:'6px 16px', borderRadius:20,
             background:`${s.accent}25`, color: s.accent,
             fontSize:13, fontWeight:700, marginBottom:18, border:`1px solid ${s.accent}40`,
           }}>{s.badge}</span>
 
-          <h1 style={{ margin:'0 0 6px', fontSize:52, fontWeight:900, color:'#fff', lineHeight:1.1, letterSpacing:-1 }}>
+          <h1 className="hero-title" style={{ margin:'0 0 6px', fontSize:52, fontWeight:900, color:'#fff', lineHeight:1.1, letterSpacing:-1 }}>
             {s.title}
           </h1>
-          <p style={{ margin:'0 0 14px', fontSize:24, fontWeight:700, color: s.accent }}>{s.subtitle}</p>
-          <p style={{ margin:'0 0 32px', fontSize:16, color:'rgba(255,255,255,.65)', lineHeight:1.7 }}>{s.desc}</p>
+          <p className="hero-subtitle" style={{ margin:'0 0 14px', fontSize:24, fontWeight:700, color: s.accent }}>{s.subtitle}</p>
+          <p className="hero-desc" style={{ margin:'0 0 32px', fontSize:16, color:'rgba(255,255,255,.65)', lineHeight:1.7 }}>{s.desc}</p>
 
-          <div style={{ display:'flex', gap:12 }}>
+          <div className="hero-btns" style={{ display:'flex', gap:12 }}>
             <Link to={s.cta} style={{
               padding:'13px 28px', borderRadius:12, background: s.accent,
               color:'#fff', fontWeight:800, fontSize:15, textDecoration:'none',
@@ -238,7 +238,7 @@ function HeroSlider() {
           </div>
 
           {/* Trust row */}
-          <div style={{ display:'flex', gap:24, marginTop:36 }}>
+          <div className="hero-trust" style={{ display:'flex', gap:24, marginTop:36 }}>
             {['✅ Hàng chính hãng', '🚚 Giao toàn quốc', '🔧 Bảo hành tận nơi'].map(b => (
               <span key={b} style={{ fontSize:13, color:'rgba(255,255,255,.55)', fontWeight:600 }}>{b}</span>
             ))}
@@ -246,7 +246,7 @@ function HeroSlider() {
         </div>
 
         {/* Visual side */}
-        <div style={{
+        <div className="hero-visual" style={{
           flex:1, maxWidth:420, textAlign:'center',
           opacity: anim?1:0, transform: anim?'none':'translateX(20px)', transition:'all 0.5s ease',
         }}>
@@ -323,6 +323,8 @@ function Navbar({ categories, searchInput, setSearchInput, onSearch, user, logou
   const [catOpen, setCatOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const [userOpen, setUserOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [mobileSearch, setMobileSearch] = useState(false)
   const catRef = useRef(null)
   const userRef = useRef(null)
 
@@ -351,8 +353,8 @@ function Navbar({ categories, searchInput, setSearchInput, onSearch, user, logou
       transition:'all .3s',
       borderBottom:'1px solid rgba(255,255,255,.06)',
     }}>
-      <div style={{ maxWidth:1280, margin:'0 auto', padding:'0 24px',
-        display:'flex', alignItems:'center', height:64, gap:24 }}>
+      <div style={{ maxWidth:1280, margin:'0 auto', padding:'0 16px',
+        display:'flex', alignItems:'center', height:64, gap:16 }}>
 
         {/* Logo */}
         <Link to="/" style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:10, flexShrink:0 }}>
@@ -435,8 +437,8 @@ function Navbar({ categories, searchInput, setSearchInput, onSearch, user, logou
           )}
         </div>
 
-        {/* Search */}
-        <form onSubmit={onSearch} style={{ flex:1, maxWidth:500 }}>
+        {/* Search - desktop */}
+        <form className="nav-search-wrap" onSubmit={onSearch} style={{ flex:1, maxWidth:500 }}>
           <div style={{ display:'flex', background:'rgba(255,255,255,.1)', borderRadius:10, overflow:'hidden',
             border:'1.5px solid rgba(255,255,255,.12)', transition:'all .2s' }}
             onFocusCapture={e => e.currentTarget.style.borderColor='#60a5fa'}
@@ -463,8 +465,8 @@ function Navbar({ categories, searchInput, setSearchInput, onSearch, user, logou
           </div>
         </form>
 
-        {/* Right nav */}
-        <div style={{ display:'flex', gap:4, alignItems:'center', marginLeft:'auto', flexShrink:0 }}>
+        {/* Right nav - desktop */}
+        <div className="nav-desktop" style={{ gap:4, alignItems:'center', marginLeft:'auto', flexShrink:0 }}>
           <NavLink to="/products" label="Sản phẩm" icon="🖥️" />
           <NavLink to="/cart" label="Giỏ hàng" icon="🛒" />
           <NavLink to="/orders" label="Đơn hàng" icon="📦" />
@@ -523,7 +525,129 @@ function Navbar({ categories, searchInput, setSearchInput, onSearch, user, logou
             )}
           </div>
         </div>
+        {/* Hamburger + search icon - mobile */}
+        <div className="nav-mobile-btn" style={{ gap:4, alignItems:'center', marginLeft:'auto', flexShrink:0 }}>
+          <button onClick={() => setMobileSearch(v => !v)} style={{
+            padding:'8px 10px', background:'rgba(255,255,255,.08)', border:'1.5px solid rgba(255,255,255,.12)',
+            borderRadius:8, color:'#e2e8f0', fontSize:16, cursor:'pointer',
+          }}>🔍</button>
+          <button onClick={() => setMobileOpen(v => !v)} style={{
+            padding:'8px 12px', background: mobileOpen ? 'rgba(255,255,255,.15)' : 'rgba(255,255,255,.08)',
+            border:'1.5px solid rgba(255,255,255,.12)',
+            borderRadius:8, color:'#e2e8f0', fontSize:18, cursor:'pointer',
+          }}>{mobileOpen ? '✕' : '☰'}</button>
+        </div>
       </div>
+
+      {/* Mobile search bar */}
+      {mobileSearch && (
+        <div style={{ padding:'10px 16px', borderTop:'1px solid rgba(255,255,255,.08)', background:'rgba(26,35,65,.99)' }}>
+          <form onSubmit={(e) => { onSearch(e); setMobileSearch(false) }} style={{ display:'flex', gap:8 }}>
+            <input
+              value={searchInput}
+              onChange={e => setSearchInput(e.target.value)}
+              placeholder="Tìm laptop..."
+              autoFocus
+              style={{
+                flex:1, padding:'10px 14px', borderRadius:9, border:'1.5px solid rgba(255,255,255,.15)',
+                background:'rgba(255,255,255,.1)', color:'#fff', fontSize:14, outline:'none',
+              }}
+            />
+            <button type="submit" style={{
+              padding:'10px 16px', background:'#2563eb', border:'none', borderRadius:9,
+              color:'#fff', fontSize:15, cursor:'pointer',
+            }}>🔍</button>
+          </form>
+        </div>
+      )}
+
+      {/* Mobile menu overlay */}
+      {mobileOpen && (
+        <div style={{
+          position:'fixed', inset:0, zIndex:500,
+          background:'rgba(0,0,0,.5)', backdropFilter:'blur(2px)',
+        }} onClick={() => setMobileOpen(false)}>
+          <div style={{
+            position:'absolute', top:0, left:0, bottom:0, width:280,
+            background:'#1a2341', display:'flex', flexDirection:'column',
+            animation:'slideInLeft .25s ease', overflowY:'auto',
+          }} onClick={e => e.stopPropagation()}>
+            {/* Menu header */}
+            <div style={{ padding:'20px 20px 16px', borderBottom:'1px solid rgba(255,255,255,.08)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <Link to="/" onClick={() => setMobileOpen(false)} style={{ textDecoration:'none', display:'flex', alignItems:'center', gap:8 }}>
+                <span style={{ fontSize:20 }}>💻</span>
+                <span style={{ fontSize:17, fontWeight:900, color:'#fff' }}>Laptop<span style={{ color:'#60a5fa' }}>Store</span></span>
+              </Link>
+              <button onClick={() => setMobileOpen(false)} style={{ background:'rgba(255,255,255,.1)', border:'none', borderRadius:8, width:32, height:32, color:'#e2e8f0', fontSize:16, cursor:'pointer' }}>✕</button>
+            </div>
+
+            {/* Menu links */}
+            <div style={{ padding:'12px 0', flex:1 }}>
+              {[
+                { to:'/products', icon:'🖥️', label:'Sản phẩm' },
+                { to:'/cart',     icon:'🛒', label:'Giỏ hàng' },
+                { to:'/orders',   icon:'📦', label:'Đơn hàng' },
+              ].map(item => (
+                <Link key={item.to} to={item.to} onClick={() => setMobileOpen(false)} style={{
+                  display:'flex', alignItems:'center', gap:14,
+                  padding:'14px 20px', color:'#e2e8f0', textDecoration:'none',
+                  fontSize:15, fontWeight:600, borderBottom:'1px solid rgba(255,255,255,.04)',
+                  transition:'background .15s',
+                }}
+                  onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,.08)'}
+                  onMouseLeave={e => e.currentTarget.style.background='transparent'}
+                >
+                  <span style={{ fontSize:18 }}>{item.icon}</span> {item.label}
+                </Link>
+              ))}
+
+              {/* Danh mục */}
+              <div style={{ padding:'16px 20px 8px', fontSize:11, fontWeight:700, color:'#64748b', textTransform:'uppercase', letterSpacing:.8 }}>
+                Danh mục
+              </div>
+              {categories.filter(c => c.status===1).map(cat => {
+                const meta = CAT_META[cat.name] || { icon:'💻', color:'#2563eb' }
+                return (
+                  <Link key={cat.id} to={`/products?category_id=${cat.id}`} onClick={() => setMobileOpen(false)} style={{
+                    display:'flex', alignItems:'center', gap:12,
+                    padding:'12px 20px', color:'#cbd5e1', textDecoration:'none',
+                    fontSize:14, fontWeight:600, borderBottom:'1px solid rgba(255,255,255,.04)',
+                    transition:'background .15s',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background='rgba(255,255,255,.06)'}
+                    onMouseLeave={e => e.currentTarget.style.background='transparent'}
+                  >
+                    <span>{meta.icon}</span> {cat.name}
+                  </Link>
+                )
+              })}
+            </div>
+
+            {/* Account actions */}
+            <div style={{ padding:'16px 20px', borderTop:'1px solid rgba(255,255,255,.08)', display:'flex', flexDirection:'column', gap:10 }}>
+              {user ? (
+                <>
+                  <Link to="/profile" onClick={() => setMobileOpen(false)} style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px', background:'rgba(255,255,255,.08)', borderRadius:10, color:'#e2e8f0', textDecoration:'none', fontSize:14, fontWeight:600 }}>
+                    👤 {user.name}
+                  </Link>
+                  <button onClick={() => { setMobileOpen(false); logout() }} style={{ display:'flex', alignItems:'center', gap:10, padding:'11px 14px', background:'rgba(239,68,68,.15)', borderRadius:10, color:'#fca5a5', border:'none', fontSize:14, fontWeight:600, cursor:'pointer', width:'100%' }}>
+                    🚪 Đăng xuất
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link to="/login" onClick={() => setMobileOpen(false)} style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'12px', background:'#2563eb', borderRadius:10, color:'#fff', textDecoration:'none', fontSize:14, fontWeight:700 }}>
+                    🔑 Đăng nhập
+                  </Link>
+                  <Link to="/register" onClick={() => setMobileOpen(false)} style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8, padding:'12px', background:'rgba(255,255,255,.08)', borderRadius:10, color:'#e2e8f0', textDecoration:'none', fontSize:14, fontWeight:600 }}>
+                    📝 Đăng ký
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   )
 }
@@ -566,7 +690,7 @@ function CategoryProductSection({ cat }) {
   return (
     <div style={{ marginBottom:64 }}>
       {/* Section header */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24, flexWrap:'wrap', gap:12 }}>
+      <div className="cat-section-hd" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:24, flexWrap:'wrap', gap:12 }}>
         <div style={{ display:'flex', alignItems:'center', gap:14 }}>
           <div style={{
             width:52, height:52, borderRadius:16, flexShrink:0,
@@ -595,7 +719,7 @@ function CategoryProductSection({ cat }) {
 
       {/* Products grid */}
       {loading ? <Spinner /> : (
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(230px,1fr))', gap:20 }}>
+        <div className="product-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(230px,1fr))', gap:20 }}>
           {products.map(p => <ProductCard key={p.id} product={p} />)}
         </div>
       )}
@@ -608,7 +732,7 @@ function ProductsByCategory({ categories }) {
   if (!cats.length) return null
 
   return (
-    <section style={{ padding:'72px 24px', background:'#fff' }}>
+    <section className="section-pad" style={{ padding:'72px 24px', background:'#fff' }}>
       <div style={{ maxWidth:1280, margin:'0 auto' }}>
         <div style={{ textAlign:'center', marginBottom:56 }}>
           <h2 style={{ margin:'0 0 8px', fontSize:34, fontWeight:900, color:'#111827' }}>
@@ -658,7 +782,7 @@ function QuickFilter({ categories, brands }) {
   }
 
   return (
-    <section style={{ padding:'48px 24px', background:'linear-gradient(135deg, #1a2341 0%, #1e3a5f 100%)' }}>
+    <section className="qf-section" style={{ padding:'48px 24px', background:'linear-gradient(135deg, #1a2341 0%, #1e3a5f 100%)' }}>
       <div style={{ maxWidth:1280, margin:'0 auto' }}>
         <div style={{ textAlign:'center', marginBottom:28 }}>
           <h2 style={{ margin:'0 0 8px', fontSize:26, fontWeight:900, color:'#fff' }}>
@@ -691,7 +815,7 @@ function QuickFilter({ categories, brands }) {
           </div>
 
           {/* Row 2: 3 bộ lọc + nút */}
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr auto', gap:12, alignItems:'end' }}>
+          <div className="qf-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr auto', gap:12, alignItems:'end' }}>
             <div>
               <p style={{ margin:'0 0 8px', fontSize:13, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:.8 }}>Ngân sách</p>
               <select value={budget} onChange={e => setBudget(e.target.value)}
@@ -729,8 +853,8 @@ function QuickFilter({ categories, brands }) {
               </select>
             </div>
 
-            <button onClick={handleFilter} style={{
-              padding:'11px 28px', borderRadius:10,
+            <div className="qf-btn-wrap"><button onClick={handleFilter} style={{
+              width:'100%', padding:'11px 28px', borderRadius:10,
               background:'linear-gradient(135deg,#2563eb,#1d4ed8)', color:'#fff',
               border:'none', fontSize:15, fontWeight:800, cursor:'pointer',
               boxShadow:'0 8px 24px rgba(37,99,235,.4)', transition:'all .2s',
@@ -740,7 +864,7 @@ function QuickFilter({ categories, brands }) {
               onMouseLeave={e => { e.currentTarget.style.transform='none'; e.currentTarget.style.boxShadow='0 8px 24px rgba(37,99,235,.4)' }}
             >
               🔍 Tìm ngay
-            </button>
+            </button></div>
           </div>
         </div>
       </div>
@@ -777,7 +901,7 @@ function FlashSaleCountdown({ products }) {
     <section style={{ padding:'64px 24px', background:'#fff' }}>
       <div style={{ maxWidth:1280, margin:'0 auto' }}>
         {/* Header */}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:32, flexWrap:'wrap', gap:16 }}>
+        <div className="flash-header" style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:32, flexWrap:'wrap', gap:16 }}>
           <div style={{ display:'flex', alignItems:'center', gap:20 }}>
             <h2 style={{ margin:0, fontSize:32, fontWeight:900, color:'#111827' }}>⚡ Flash Sale</h2>
             {/* Countdown */}
@@ -805,7 +929,7 @@ function FlashSaleCountdown({ products }) {
           >Xem tất cả →</Link>
         </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px,1fr))', gap:18 }}>
+        <div className="flash-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(220px,1fr))', gap:18 }}>
           {flashItems.map(p => <ProductCard key={p.id} product={p} compact />)}
         </div>
       </div>
@@ -898,12 +1022,13 @@ export default function HomePage() {
   return (
     <div style={{ fontFamily:"'Be Vietnam Pro','Segoe UI',sans-serif", background:'#fff', minHeight:'100vh' }}>
       <style>{`
-        @keyframes spin      { to { transform:rotate(360deg) } }
-        @keyframes fadeUp    { from { opacity:0;transform:translateY(20px) } to { opacity:1;transform:none } }
-        @keyframes dropIn    { from { opacity:0;transform:translateY(-8px) } to { opacity:1;transform:none } }
-        @keyframes slideUp   { from { opacity:0;transform:translateY(20px) } to { opacity:1;transform:none } }
-        @keyframes bounce    { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
-        @keyframes pulseRing { 0%{transform:scale(.8);opacity:1} 70%{transform:scale(1.4);opacity:0} 100%{opacity:0} }
+        @keyframes spin        { to { transform:rotate(360deg) } }
+        @keyframes fadeUp      { from { opacity:0;transform:translateY(20px) } to { opacity:1;transform:none } }
+        @keyframes dropIn      { from { opacity:0;transform:translateY(-8px) } to { opacity:1;transform:none } }
+        @keyframes slideUp     { from { opacity:0;transform:translateY(20px) } to { opacity:1;transform:none } }
+        @keyframes slideInLeft { from { opacity:0;transform:translateX(-100%) } to { opacity:1;transform:none } }
+        @keyframes bounce      { 0%,80%,100%{transform:translateY(0)} 40%{transform:translateY(-6px)} }
+        @keyframes pulseRing   { 0%{transform:scale(.8);opacity:1} 70%{transform:scale(1.4);opacity:0} 100%{opacity:0} }
         .ld-spinner {
           width:36px;height:36px;margin:0 auto;
           border:4px solid #e5e7eb;border-top-color:#2563eb;
@@ -911,6 +1036,105 @@ export default function HomePage() {
         }
         * { box-sizing:border-box }
         ::placeholder { color:rgba(255,255,255,.4) !important }
+
+        /* ── RESPONSIVE ── */
+
+        /* Navbar desktop items ẩn trên mobile */
+        .nav-desktop { display:flex !important; }
+        .nav-mobile-btn { display:none !important; }
+        .nav-search-wrap { display:flex !important; }
+
+        @media (max-width: 768px) {
+          .nav-desktop { display:none !important; }
+          .nav-mobile-btn { display:flex !important; }
+          .nav-search-wrap { display:none !important; }
+        }
+
+        /* Hero section */
+        @media (max-width: 900px) {
+          .hero-visual { display:none !important; }
+          .hero-text { max-width:100% !important; }
+          .hero-title { font-size:36px !important; }
+          .hero-trust { flex-wrap:wrap !important; gap:10px !important; }
+        }
+        @media (max-width: 600px) {
+          .hero-section { padding:48px 16px 64px !important; min-height:360px !important; }
+          .hero-title { font-size:28px !important; letter-spacing:-0.5px !important; }
+          .hero-subtitle { font-size:17px !important; }
+          .hero-desc { font-size:14px !important; }
+          .hero-btns { flex-direction:column !important; }
+          .hero-btns a { text-align:center !important; }
+          .hero-trust { display:none !important; }
+        }
+
+        /* Quick Filter */
+        @media (max-width: 768px) {
+          .qf-grid { grid-template-columns:1fr 1fr !important; }
+          .qf-btn-wrap { grid-column: 1/-1 !important; }
+        }
+        @media (max-width: 480px) {
+          .qf-grid { grid-template-columns:1fr !important; }
+          .qf-section { padding:32px 16px !important; }
+        }
+
+        /* Flash Sale countdown */
+        @media (max-width: 640px) {
+          .flash-header { flex-direction:column !important; align-items:flex-start !important; gap:12px !important; }
+          .flash-title-row { flex-wrap:wrap !important; }
+        }
+
+        /* Category / Product grids */
+        @media (max-width: 600px) {
+          .cat-grid { grid-template-columns:repeat(2,1fr) !important; gap:10px !important; }
+          .product-grid { grid-template-columns:repeat(2,1fr) !important; gap:10px !important; }
+          .flash-grid { grid-template-columns:repeat(2,1fr) !important; gap:10px !important; }
+        }
+        @media (max-width: 360px) {
+          .cat-grid { grid-template-columns:repeat(2,1fr) !important; }
+          .product-grid { grid-template-columns:1fr !important; }
+        }
+
+        /* Section header with "Xem tất cả" link */
+        @media (max-width: 540px) {
+          .section-hd { flex-direction:column !important; align-items:flex-start !important; gap:10px !important; }
+        }
+
+        /* Banner giữa */
+        @media (max-width: 640px) {
+          .mid-banner { padding:36px 16px !important; }
+          .mid-banner-inner { flex-direction:column !important; text-align:center !important; }
+          .mid-banner h2 { font-size:20px !important; }
+        }
+
+        /* Why us section */
+        @media (max-width: 600px) {
+          .why-grid { grid-template-columns:1fr 1fr !important; gap:14px !important; }
+          .why-section { padding:48px 16px !important; }
+        }
+        @media (max-width: 400px) {
+          .why-grid { grid-template-columns:1fr !important; }
+        }
+
+        /* Footer */
+        @media (max-width: 640px) {
+          .footer-grid { grid-template-columns:1fr 1fr !important; gap:28px !important; }
+          .footer-brand { grid-column:1/-1 !important; }
+          .footer-bottom { flex-direction:column !important; align-items:center !important; text-align:center !important; }
+          .footer-links { justify-content:center !important; }
+        }
+        @media (max-width: 400px) {
+          .footer-grid { grid-template-columns:1fr !important; }
+        }
+
+        /* Category section (under products) */
+        @media (max-width: 540px) {
+          .cat-section-hd { flex-direction:column !important; align-items:flex-start !important; gap:8px !important; }
+        }
+
+        /* General section padding */
+        @media (max-width: 600px) {
+          .section-pad { padding:48px 16px !important; }
+        }
       `}</style>
 
       {/* Marquee */}
@@ -933,14 +1157,14 @@ export default function HomePage() {
       <QuickFilter categories={categories} brands={brands} />
 
       {/* Danh mục */}
-      <section style={{ padding:'72px 24px', background:'#f8fafc' }}>
+      <section className="section-pad" style={{ padding:'72px 24px', background:'#f8fafc' }}>
         <div style={{ maxWidth:1280, margin:'0 auto' }}>
           <div style={{ textAlign:'center', marginBottom:40 }}>
             <h2 style={{ margin:'0 0 8px', fontSize:34, fontWeight:900, color:'#111827' }}>Danh mục sản phẩm</h2>
             <p style={{ margin:0, color:'#6b7280', fontSize:15 }}>Chọn dòng laptop phù hợp với nhu cầu của bạn</p>
           </div>
           {loading ? <Spinner /> : (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px,1fr))', gap:16 }}>
+            <div className="cat-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(180px,1fr))', gap:16 }}>
               {categories.filter(c => c.status===1).map(cat => {
                 const meta = CAT_META[cat.name] || { icon:'💻', color:'#2563eb', bg:'#eff6ff', desc:'Xem sản phẩm' }
                 return (
@@ -979,9 +1203,9 @@ export default function HomePage() {
       <FlashSaleCountdown products={[...featured, ...bestseller]} />
 
       {/* Sản phẩm nổi bật */}
-      <section style={{ padding:'72px 24px', background:'#f8fafc' }}>
+      <section className="section-pad" style={{ padding:'72px 24px', background:'#f8fafc' }}>
         <div style={{ maxWidth:1280, margin:'0 auto' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:32 }}>
+          <div className="section-hd" style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:32 }}>
             <div>
               <h2 style={{ margin:'0 0 6px', fontSize:32, fontWeight:900, color:'#111827' }}>⭐ Sản phẩm nổi bật</h2>
               <p style={{ margin:0, color:'#6b7280', fontSize:15 }}>Những mẫu laptop được yêu thích nhất</p>
@@ -995,7 +1219,7 @@ export default function HomePage() {
             >Xem tất cả →</Link>
           </div>
           {loading ? <Spinner /> : (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:20 }}>
+            <div className="product-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:20 }}>
               {featured.map(p => <ProductCard key={p.id} product={p} />)}
             </div>
           )}
@@ -1006,9 +1230,9 @@ export default function HomePage() {
       <ProductsByCategory categories={categories} />
 
       {/* Bán chạy */}
-      <section style={{ padding:'72px 24px', background:'#f8fafc' }}>
+      <section className="section-pad" style={{ padding:'72px 24px', background:'#f8fafc' }}>
         <div style={{ maxWidth:1280, margin:'0 auto' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:32 }}>
+          <div className="section-hd" style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginBottom:32 }}>
             <div>
               <h2 style={{ margin:'0 0 6px', fontSize:32, fontWeight:900, color:'#111827' }}>🔥 Bán chạy nhất</h2>
               <p style={{ margin:0, color:'#6b7280', fontSize:15 }}>Top sản phẩm được khách hàng tin chọn nhiều nhất</p>
@@ -1022,7 +1246,7 @@ export default function HomePage() {
             >Xem tất cả →</Link>
           </div>
           {loading ? <Spinner /> : (
-            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:20 }}>
+            <div className="product-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill,minmax(240px,1fr))', gap:20 }}>
               {bestseller.map(p => <ProductCard key={p.id} product={p} />)}
             </div>
           )}
@@ -1033,8 +1257,8 @@ export default function HomePage() {
       <BrandsSection brands={brands} />
 
       {/* Banner giữa */}
-      <section style={{ background:'linear-gradient(135deg,#2563eb,#1d4ed8)', padding:'56px 24px' }}>
-        <div style={{ maxWidth:1280, margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:24 }}>
+      <section className="mid-banner" style={{ background:'linear-gradient(135deg,#2563eb,#1d4ed8)', padding:'56px 24px' }}>
+        <div className="mid-banner-inner" style={{ maxWidth:1280, margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'space-between', flexWrap:'wrap', gap:24 }}>
           <div>
             <h2 style={{ margin:'0 0 10px', fontSize:30, fontWeight:900, color:'#fff' }}>🎁 Ưu đãi đặc biệt — Giảm đến 30%</h2>
             <p style={{ margin:0, color:'#bfdbfe', fontSize:16 }}>Áp dụng cho laptop gaming và văn phòng cao cấp. Số lượng có hạn!</p>
@@ -1053,7 +1277,7 @@ export default function HomePage() {
       </section>
 
       {/* Tại sao chọn chúng tôi */}
-      <section style={{ padding:'72px 24px', background:'#fff' }}>
+      <section className="why-section section-pad" style={{ padding:'72px 24px', background:'#fff' }}>
         <div style={{ maxWidth:1280, margin:'0 auto' }}>
           <h2 style={{ textAlign:'center', margin:'0 0 12px', fontSize:32, fontWeight:900, color:'#111827' }}>
             Tại sao chọn LaptopStore?
@@ -1061,7 +1285,7 @@ export default function HomePage() {
           <p style={{ textAlign:'center', margin:'0 0 48px', color:'#6b7280', fontSize:15 }}>
             Chúng tôi cam kết mang lại trải nghiệm mua sắm tốt nhất
           </p>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:24 }}>
+          <div className="why-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:24 }}>
             {[
               { icon:'🏆', title:'Chính hãng 100%', desc:'Tất cả sản phẩm nhập khẩu chính hãng, có tem phân phối chính thức.', color:'#f59e0b' },
               { icon:'💰', title:'Giá cạnh tranh',  desc:'Cam kết giá tốt nhất thị trường. Tìm thấy rẻ hơn — chúng tôi hoàn tiền.', color:'#10b981' },
@@ -1097,7 +1321,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer style={{ background:'#1a2341', color:'#94a3b8', padding:'48px 24px 24px' }}>
         <div style={{ maxWidth:1280, margin:'0 auto' }}>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:40, marginBottom:40 }}>
+          <div className="footer-grid" style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))', gap:40, marginBottom:40 }}>
             <div>
               <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:14 }}>
                 <span style={{ fontSize:22 }}>💻</span>
@@ -1154,10 +1378,9 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-          <div style={{ borderTop:'1px solid rgba(255,255,255,.08)', paddingTop:24,
-            display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
+          <div className="footer-bottom" style={{ borderTop:'1px solid rgba(255,255,255,.08)', paddingTop:24, display:'flex', justifyContent:'space-between', flexWrap:'wrap', gap:12 }}>
             <p style={{ margin:0, fontSize:13 }}>© 2025 LaptopStore. Tất cả quyền được bảo lưu.</p>
-            <div style={{ display:'flex', gap:16 }}>
+            <div className="footer-links" style={{ display:'flex', gap:16, flexWrap:'wrap' }}>
               {['Điều khoản dịch vụ','Chính sách bảo mật','Cookie'].map(l => (
                 <span key={l} style={{ fontSize:13, cursor:'pointer' }}
                   onMouseEnter={e => e.currentTarget.style.color='#60a5fa'}

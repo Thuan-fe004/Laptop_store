@@ -56,6 +56,19 @@ function StockModal({ product, onClose, onSaved }) {
   )
 }
 
+// ─── Field wrapper (định nghĩa NGOÀI ProductFormModal để tránh re-render) ───
+function Field({ label, required, error, children }) {
+  return (
+    <div>
+      <label style={{display:'block',marginBottom:5,fontSize:13,fontWeight:600,color:'#374151'}}>
+        {label}{required && <span style={{color:'#ef4444'}}> *</span>}
+      </label>
+      {children}
+      {error && <p style={{margin:'4px 0 0',fontSize:12,color:'#ef4444'}}>{error}</p>}
+    </div>
+  )
+}
+
 // ─── Product Form Modal (Thêm / Sửa) ─────────────────
 function ProductFormModal({ product, categories, brands, onClose, onSaved }) {
   const isEdit = !!product
@@ -144,17 +157,10 @@ function ProductFormModal({ product, categories, brands, onClose, onSaved }) {
   const inp = (err) => ({
     width:'100%', padding:'9px 12px', borderRadius:9, fontSize:14, boxSizing:'border-box',
     border: err ? '1.5px solid #ef4444' : '1.5px solid #e5e7eb', outline:'none', fontFamily:'inherit',
+    background:'#fff', color:'#111827', cursor:'text',
   })
 
-  const Field = ({ label, required, error, children }) => (
-    <div>
-      <label style={{display:'block',marginBottom:5,fontSize:13,fontWeight:600,color:'#374151'}}>
-        {label}{required && <span style={{color:'#ef4444'}}> *</span>}
-      </label>
-      {children}
-      {error && <p style={{margin:'4px 0 0',fontSize:12,color:'#ef4444'}}>{error}</p>}
-    </div>
-  )
+  // Field component được định nghĩa bên ngoài
 
   const TABS = [
     { id:'basic',  label:'📋 Thông tin cơ bản' },
@@ -163,7 +169,7 @@ function ProductFormModal({ product, categories, brands, onClose, onSaved }) {
   ]
 
   return (
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}} onClick={onClose}>
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:16}} onClick={(e)=>{ if(e.target===e.currentTarget) onClose() }}>
       <div style={{background:'#fff',borderRadius:20,width:'100%',maxWidth:780,maxHeight:'92vh',display:'flex',flexDirection:'column',boxShadow:'0 24px 64px rgba(0,0,0,.3)'}} onClick={e=>e.stopPropagation()}>
 
         {/* Header */}
@@ -205,13 +211,13 @@ function ProductFormModal({ product, categories, brands, onClose, onSaved }) {
 
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
                 <Field label="Danh mục" required error={errors.category_id}>
-                  <select value={form.category_id} onChange={e=>setF('category_id',e.target.value)} style={inp(errors.category_id)}>
+                  <select value={form.category_id} onChange={e=>setF('category_id',e.target.value)} style={{...inp(errors.category_id), cursor:'pointer', appearance:'auto'}}>
                     <option value="">-- Chọn danh mục --</option>
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                 </Field>
                 <Field label="Thương hiệu" required error={errors.brand_id}>
-                  <select value={form.brand_id} onChange={e=>setF('brand_id',e.target.value)} style={inp(errors.brand_id)}>
+                  <select value={form.brand_id} onChange={e=>setF('brand_id',e.target.value)} style={{...inp(errors.brand_id), cursor:'pointer', appearance:'auto'}}>
                     <option value="">-- Chọn thương hiệu --</option>
                     {brands.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                   </select>
@@ -232,12 +238,12 @@ function ProductFormModal({ product, categories, brands, onClose, onSaved }) {
 
               <Field label="Mô tả ngắn">
                 <textarea value={form.short_desc} onChange={e=>setF('short_desc',e.target.value)} rows={2}
-                  placeholder="Mô tả tóm tắt hiển thị trong danh sách..." style={{...inp(false),resize:'vertical'}} />
+                  placeholder="Mô tả tóm tắt hiển thị trong danh sách..." style={{...inp(false), resize:'vertical', cursor:'text'}} />
               </Field>
 
               <Field label="Mô tả chi tiết">
                 <textarea value={form.description} onChange={e=>setF('description',e.target.value)} rows={4}
-                  placeholder="Mô tả đầy đủ sản phẩm..." style={{...inp(false),resize:'vertical'}} />
+                  placeholder="Mô tả đầy đủ sản phẩm..." style={{...inp(false), resize:'vertical', cursor:'text'}} />
               </Field>
 
               {/* Flags */}

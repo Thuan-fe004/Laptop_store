@@ -1,5 +1,5 @@
 // src/pages/AccountPage.jsx
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { useAuth } from '../context/AuthContext'
@@ -10,24 +10,247 @@ import { useAuth } from '../context/AuthContext'
 const fmt = (n) => new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
 const STATUS_MAP = {
-  pending:    { label: 'Chờ xác nhận', color: '#f59e0b', bg: '#fffbeb', icon: '⏳' },
-  confirmed:  { label: 'Đã xác nhận',  color: '#2563eb', bg: '#eff6ff', icon: '✅' },
-  shipping:   { label: 'Đang giao',    color: '#7c3aed', bg: '#f5f3ff', icon: '🚚' },
-  delivered:  { label: 'Đã nhận',      color: '#16a34a', bg: '#f0fdf4', icon: '📦' },
-  cancelled:  { label: 'Đã hủy',       color: '#ef4444', bg: '#fef2f2', icon: '❌' },
+  pending:   { label: 'Chờ xác nhận', color: '#d97706', bg: '#fffbeb', border: '#fde68a', icon: '⏳' },
+  confirmed: { label: 'Đã xác nhận',  color: '#2563eb', bg: '#eff6ff', border: '#bfdbfe', icon: '✅' },
+  shipping:  { label: 'Đang giao',    color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe', icon: '🚚' },
+  delivered: { label: 'Đã nhận',      color: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0', icon: '📦' },
+  cancelled: { label: 'Đã hủy',       color: '#ef4444', bg: '#fef2f2', border: '#fecaca', icon: '❌' },
 }
 
 const TABS = [
-  { key: 'info',     label: 'Thông tin',    icon: '👤' },
-  { key: 'password', label: 'Mật khẩu',    icon: '🔒' },
-  { key: 'orders',   label: 'Đơn hàng',    icon: '📦' },
-  { key: 'address',  label: 'Địa chỉ',     icon: '📍' },
-  { key: 'wishlist', label: 'Yêu thích',   icon: '❤️' },
+  { key: 'info',     label: 'Thông tin',   icon: '👤', desc: 'Hồ sơ cá nhân' },
+  { key: 'password', label: 'Bảo mật',     icon: '🔒', desc: 'Đổi mật khẩu' },
+  { key: 'orders',   label: 'Đơn hàng',   icon: '📦', desc: 'Lịch sử mua' },
+  { key: 'address',  label: 'Địa chỉ',    icon: '📍', desc: 'Nơi giao hàng' },
 ]
 
 /* ═══════════════════════════════════════════════════════
-   TOAST NOTIFICATION
+   GLOBAL STYLES (injected once)
 ═══════════════════════════════════════════════════════ */
+const globalCSS = `
+  @import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800;900&family=Inter:wght@400;500;600&display=swap');
+  @keyframes spin { to { transform: rotate(360deg) } }
+  @keyframes slideUp { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:translateY(0) } }
+  @keyframes fadeIn { from { opacity:0 } to { opacity:1 } }
+  @keyframes scaleIn { from { opacity:0; transform:scale(.96) } to { opacity:1; transform:scale(1) } }
+  * { box-sizing: border-box; margin: 0; padding: 0 }
+  body { font-family: 'Inter', sans-serif }
+  input, button, select, textarea { font-family: inherit }
+  input::placeholder { color: #94a3b8 }
+  ::-webkit-scrollbar { width: 5px; height: 5px }
+  ::-webkit-scrollbar-track { background: #f1f5f9 }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px }
+
+  .acc-root { min-height: 100vh; background: #f0f4f8; font-family: 'Inter', sans-serif; color: #1e293b }
+
+  /* HERO */
+  .acc-hero { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 60%, #312e81 100%); padding: 40px 24px 100px; position: relative; overflow: hidden }
+  .acc-hero::before { content:''; position:absolute; inset:0; background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); pointer-events: none }
+  .acc-hero-inner { max-width: 1100px; margin: 0 auto }
+  .acc-logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; margin-bottom: 28px }
+  .acc-logo-text { font-family: 'Sora', sans-serif; font-size: 20px; font-weight: 900; color: #fff }
+  .acc-logo-text span { color: #60a5fa }
+  .acc-breadcrumb { font-size: 13px; color: #64748b; margin-bottom: 24px; display: flex; align-items: center; gap: 8px }
+  .acc-breadcrumb a { color: #94a3b8; text-decoration: none }
+  .acc-breadcrumb a:hover { color: #fff }
+  .acc-user-hero { display: flex; align-items: center; gap: 20px; flex-wrap: wrap }
+  .acc-avatar-hero { width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #60a5fa, #818cf8); display: flex; align-items: center; justify-content: center; font-family: 'Sora', sans-serif; font-size: 30px; font-weight: 900; color: #fff; flex-shrink: 0; box-shadow: 0 0 0 4px rgba(96,165,250,.3), 0 8px 24px rgba(0,0,0,.3) }
+  .acc-user-name { font-family: 'Sora', sans-serif; font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 4px }
+  .acc-user-email { font-size: 14px; color: #94a3b8 }
+
+  /* LAYOUT */
+  .acc-body { max-width: 1100px; margin: -56px auto 0; padding: 0 16px 60px; position: relative; z-index: 10 }
+  .acc-grid { display: grid; grid-template-columns: 256px 1fr; gap: 20px; align-items: start }
+
+  /* SIDEBAR */
+  .acc-sidebar { background: #fff; border-radius: 20px; padding: 12px; box-shadow: 0 4px 24px rgba(0,0,0,.07); position: sticky; top: 80px }
+  .acc-nav-btn { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; border: none; cursor: pointer; background: transparent; color: #64748b; font-size: 14px; font-weight: 600; text-align: left; transition: all .15s; border-left: 3px solid transparent; margin-bottom: 2px }
+  .acc-nav-btn:hover { background: #f8fafc; color: #374151 }
+  .acc-nav-btn.active { background: linear-gradient(135deg, #eff6ff, #eef2ff); color: #2563eb; font-weight: 800; border-left-color: #2563eb }
+  .acc-nav-icon { font-size: 18px; flex-shrink: 0 }
+  .acc-nav-meta { display: flex; flex-direction: column; gap: 1px }
+  .acc-nav-sublabel { font-size: 11px; font-weight: 400; color: #9ca3af }
+  .acc-nav-btn.active .acc-nav-sublabel { color: #93c5fd }
+  .acc-nav-divider { margin: 10px 6px; border-top: 1px solid #f1f5f9 }
+  .acc-logout-btn { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; border: none; cursor: pointer; background: transparent; color: #ef4444; font-size: 14px; font-weight: 700; text-align: left; transition: all .15s }
+  .acc-logout-btn:hover { background: #fef2f2 }
+
+  /* PANEL */
+  .acc-panel { background: #fff; border-radius: 20px; padding: 32px 36px; box-shadow: 0 4px 24px rgba(0,0,0,.07); min-height: 500px; animation: scaleIn .25s ease }
+
+  /* SECTION HEADER */
+  .acc-section-header { margin-bottom: 28px }
+  .acc-section-title { font-family: 'Sora', sans-serif; font-size: 20px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 10px; margin-bottom: 4px }
+  .acc-section-desc { font-size: 14px; color: #64748b }
+  .acc-section-line { height: 3px; width: 40px; background: linear-gradient(90deg, #2563eb, #7c3aed); border-radius: 4px; margin-top: 12px }
+
+  /* INPUT */
+  .acc-field { display: flex; flex-direction: column; gap: 7px }
+  .acc-label { font-size: 13px; font-weight: 700; color: #374151 }
+  .acc-input-wrap { position: relative }
+  .acc-input { width: 100%; padding: 11px 14px; border-radius: 10px; border: 1.5px solid #e2e8f0; outline: none; font-size: 14px; color: #0f172a; transition: all .2s; background: #fff }
+  .acc-input:focus { border-color: #2563eb; background: #f8faff; box-shadow: 0 0 0 3px rgba(37,99,235,.08) }
+  .acc-input.error { border-color: #fca5a5 }
+  .acc-error-msg { font-size: 12px; color: #ef4444; margin-top: 2px }
+
+  /* PASSWORD FIELD */
+  .acc-pw-input { padding-right: 44px }
+  .acc-pw-toggle { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; font-size: 16px; color: #94a3b8; display: flex; align-items: center }
+  .acc-pw-toggle:hover { color: #64748b }
+
+  /* STRENGTH BAR */
+  .acc-strength { margin-top: 8px }
+  .acc-strength-bars { display: flex; gap: 4px; margin-bottom: 5px }
+  .acc-strength-bar { height: 4px; flex: 1; border-radius: 4px; transition: background .3s }
+  .acc-strength-label { font-size: 12px; font-weight: 700 }
+
+  /* BUTTON */
+  .acc-btn-primary { width: 100%; padding: 13px 24px; border-radius: 12px; border: none; cursor: pointer; font-size: 15px; font-weight: 800; color: #fff; background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 4px 16px rgba(37,99,235,.3); transition: all .2s; font-family: 'Sora', sans-serif }
+  .acc-btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37,99,235,.4) }
+  .acc-btn-primary:disabled { background: #93c5fd; cursor: not-allowed; transform: none; box-shadow: none }
+  .acc-btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 4px 16px rgba(239,68,68,.25) }
+  .acc-btn-danger:hover:not(:disabled) { box-shadow: 0 6px 20px rgba(239,68,68,.35) }
+  .acc-btn-outline { padding: 10px 20px; border-radius: 10px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; font-size: 14px; font-weight: 600; color: #64748b; transition: all .15s }
+  .acc-btn-outline:hover { border-color: #cbd5e1; background: #f8fafc }
+
+  /* AVATAR CARD */
+  .acc-avatar-card { display: flex; align-items: center; gap: 18px; background: linear-gradient(135deg, #eff6ff, #eef2ff); border-radius: 16px; padding: 18px 20px; margin-bottom: 28px; border: 1.5px solid #dbeafe }
+  .acc-avatar-lg { width: 68px; height: 68px; border-radius: 50%; background: linear-gradient(135deg, #2563eb, #7c3aed); display: flex; align-items: center; justify-content: center; font-family: 'Sora', sans-serif; font-size: 28px; font-weight: 900; color: #fff; flex-shrink: 0; box-shadow: 0 4px 16px rgba(37,99,235,.3) }
+  .acc-avatar-name { font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 2px }
+  .acc-avatar-email { font-size: 13px; color: #64748b; margin-bottom: 8px }
+  .acc-role-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700 }
+
+  /* INFO BOX */
+  .acc-info-box { border-radius: 14px; padding: 14px 18px; margin-bottom: 24px; display: flex; gap: 12; align-items: flex-start }
+  .acc-info-box-title { font-size: 13px; font-weight: 700; margin-bottom: 4px }
+  .acc-info-box-text { font-size: 13px; line-height: 1.7 }
+
+  /* TOAST */
+  .acc-toast { position: fixed; bottom: 28px; right: 28px; z-index: 9999; display: flex; align-items: center; gap: 12px; border-radius: 14px; padding: 14px 20px; box-shadow: 0 8px 32px rgba(0,0,0,.14); font-size: 14px; font-weight: 700; animation: slideUp .3s ease; max-width: 380px }
+
+  /* SPINNER */
+  .acc-spinner-wrap { text-align: center; padding: 56px 0 }
+  .acc-spinner { display: inline-block; width: 36px; height: 36px; border: 3px solid #e2e8f0; border-top-color: #2563eb; border-radius: 50%; animation: spin .7s linear infinite }
+
+  /* ORDERS */
+  .acc-filter-bar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap }
+  .acc-filter-btn { padding: 7px 14px; border-radius: 20px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: all .15s }
+  .acc-filter-btn.active { background: #2563eb; color: #fff }
+  .acc-filter-btn:not(.active) { background: #f1f5f9; color: #64748b }
+  .acc-filter-btn:not(.active):hover { background: #e2e8f0 }
+  .acc-order-card { border: 1.5px solid #f0f0f5; border-radius: 16px; overflow: hidden; transition: box-shadow .2s; margin-bottom: 12px }
+  .acc-order-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,.07) }
+  .acc-order-header { padding: 16px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; background: #fafafa; gap: 12px; flex-wrap: wrap }
+  .acc-order-body { padding: 16px 20px; border-top: 1px solid #f0f0f5; animation: fadeIn .2s ease }
+  .acc-order-item { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid #f9fafb }
+  .acc-order-img { width: 52px; height: 52px; border-radius: 10px; flex-shrink: 0; background: #f8fafc; display: flex; align-items: center; justify-content: center; overflow: hidden }
+  .acc-status-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700 }
+
+  /* ADDRESS */
+  .acc-addr-card { border-radius: 14px; padding: 16px 20px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12; margin-bottom: 12px; transition: box-shadow .15s }
+  .acc-addr-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,.06) }
+  .acc-addr-form { border: 1.5px solid #dbeafe; border-radius: 16px; padding: 24px; background: #f8faff }
+  .acc-addr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px }
+  .acc-addr-actions { display: flex; gap: 10px }
+
+  /* EMPTY STATE */
+  .acc-empty { text-align: center; padding: 52px 24px }
+  .acc-empty-icon { font-size: 52px; margin-bottom: 16px }
+  .acc-empty-title { font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 800; color: #374151; margin-bottom: 8px }
+  .acc-empty-desc { font-size: 14px; color: #9ca3af; margin-bottom: 20px }
+  .acc-empty-cta { display: inline-block; padding: 10px 24px; border-radius: 10px; background: linear-gradient(135deg,#2563eb,#1d4ed8); color: #fff; font-weight: 700; font-size: 14px; text-decoration: none }
+
+  /* MOBILE BOTTOM NAV */
+  .acc-mobile-nav { display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 100; background: #fff; border-top: 1px solid #e2e8f0; padding: 8px 0 env(safe-area-inset-bottom); box-shadow: 0 -4px 20px rgba(0,0,0,.08) }
+  .acc-mobile-nav-inner { display: flex; justify-content: space-around }
+  .acc-mobile-nav-btn { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 12px; background: none; border: none; cursor: pointer; font-size: 11px; font-weight: 600; color: #94a3b8; transition: color .15s; min-width: 64px }
+  .acc-mobile-nav-btn .mnb-icon { font-size: 20px }
+  .acc-mobile-nav-btn.active { color: #2563eb }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .acc-grid { grid-template-columns: 1fr }
+    .acc-sidebar { display: none }
+    .acc-mobile-nav { display: block }
+    .acc-body { padding-bottom: 90px }
+    .acc-panel { padding: 24px 20px }
+    .acc-hero { padding: 28px 16px 88px }
+    .acc-user-name { font-size: 20px }
+    .acc-avatar-hero { width: 58px; height: 58px; font-size: 24px }
+  }
+  @media (max-width: 600px) {
+    .acc-panel { padding: 20px 16px; border-radius: 16px }
+    .acc-addr-grid { grid-template-columns: 1fr }
+    .acc-addr-actions { flex-direction: column }
+    .acc-addr-actions .acc-btn-outline { width: 100% }
+    .acc-order-header { flex-direction: column; align-items: flex-start }
+    .acc-toast { bottom: 90px; right: 16px; left: 16px; max-width: none }
+    .acc-avatar-card { flex-direction: column; text-align: center }
+    .acc-avatar-lg { margin: 0 auto }
+    .acc-info-box { flex-direction: column; gap: 8px }
+  }
+  @media (min-width: 901px) {
+    .acc-mobile-nav { display: none }
+  }
+`
+
+/* ═══════════════════════════════════════════════════════
+   SHARED COMPONENTS
+═══════════════════════════════════════════════════════ */
+function Spinner() {
+  return <div className="acc-spinner-wrap"><div className="acc-spinner" /></div>
+}
+
+function SectionHeader({ icon, title, desc }) {
+  return (
+    <div className="acc-section-header">
+      <h2 className="acc-section-title"><span>{icon}</span>{title}</h2>
+      <p className="acc-section-desc">{desc}</p>
+      <div className="acc-section-line" />
+    </div>
+  )
+}
+
+function InputField({ label, name, value, onChange, placeholder, type = 'text', required, error }) {
+  return (
+    <div className="acc-field">
+      <label className="acc-label">{label}{required && <span style={{ color: '#ef4444' }}> *</span>}</label>
+      <input
+        className={`acc-input${error ? ' error' : ''}`}
+        type={type} name={name} value={value} onChange={onChange} placeholder={placeholder}
+      />
+      {error && <span className="acc-error-msg">{error}</span>}
+    </div>
+  )
+}
+
+function PasswordField({ label, name, value, onChange, show, onToggle, error }) {
+  return (
+    <div className="acc-field">
+      <label className="acc-label">{label}</label>
+      <div className="acc-input-wrap">
+        <input
+          className={`acc-input acc-pw-input${error ? ' error' : ''}`}
+          type={show ? 'text' : 'password'} name={name} value={value} onChange={onChange} placeholder="••••••••"
+        />
+        <button type="button" className="acc-pw-toggle" onClick={onToggle}>{show ? '🙈' : '👁️'}</button>
+      </div>
+      {error && <span className="acc-error-msg">{error}</span>}
+    </div>
+  )
+}
+
+function EmptyState({ icon, title, desc, cta }) {
+  return (
+    <div className="acc-empty">
+      <div className="acc-empty-icon">{icon}</div>
+      <h3 className="acc-empty-title">{title}</h3>
+      <p className="acc-empty-desc">{desc}</p>
+      {cta && <Link to={cta.to} className="acc-empty-cta">{cta.label}</Link>}
+    </div>
+  )
+}
+
 function Toast({ msg, type, onClose }) {
   useEffect(() => {
     if (!msg) return
@@ -36,41 +259,17 @@ function Toast({ msg, type, onClose }) {
   }, [msg, onClose])
 
   if (!msg) return null
-  return (
-    <div style={{
-      position: 'fixed', bottom: 28, right: 28, zIndex: 9999,
-      display: 'flex', alignItems: 'center', gap: 12,
-      background: type === 'error' ? '#fef2f2' : '#f0fdf4',
-      border: `1.5px solid ${type === 'error' ? '#fca5a5' : '#86efac'}`,
-      color: type === 'error' ? '#dc2626' : '#16a34a',
-      borderRadius: 14, padding: '14px 22px',
-      boxShadow: '0 8px 32px rgba(0,0,0,.12)',
-      fontSize: 14, fontWeight: 700,
-      animation: 'slideUp .3s ease',
-    }}>
-      <span style={{ fontSize: 20 }}>{type === 'error' ? '❌' : '✅'}</span>
-      {msg}
-      <button onClick={onClose} style={{
-        background: 'none', border: 'none', cursor: 'pointer',
-        fontSize: 16, color: 'inherit', marginLeft: 6, opacity: .6,
-      }}>✕</button>
-    </div>
-  )
-}
 
-/* ═══════════════════════════════════════════════════════
-   SPINNER
-═══════════════════════════════════════════════════════ */
-function Spinner({ size = 40 }) {
+  const isErr = type === 'error'
   return (
-    <div style={{ textAlign: 'center', padding: '48px 0' }}>
-      <div style={{
-        width: size, height: size, margin: '0 auto',
-        border: '3px solid #e5e7eb',
-        borderTop: '3px solid #2563eb',
-        borderRadius: '50%',
-        animation: 'spin .8s linear infinite',
-      }} />
+    <div className="acc-toast" style={{
+      background: isErr ? '#fef2f2' : '#f0fdf4',
+      border: `1.5px solid ${isErr ? '#fca5a5' : '#86efac'}`,
+      color: isErr ? '#dc2626' : '#16a34a',
+    }}>
+      <span style={{ fontSize: 20 }}>{isErr ? '❌' : '✅'}</span>
+      <span style={{ flex: 1 }}>{msg}</span>
+      <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'inherit', opacity: .5, lineHeight: 1 }}>✕</button>
     </div>
   )
 }
@@ -79,11 +278,7 @@ function Spinner({ size = 40 }) {
    TAB: THÔNG TIN CÁ NHÂN
 ═══════════════════════════════════════════════════════ */
 function InfoTab({ user, setToast }) {
-  const [form, setForm] = useState({
-    name:  user?.name  || '',
-    email: user?.email || '',
-    phone: user?.phone || '',
-  })
+  const [form, setForm] = useState({ name: user?.name || '', email: user?.email || '', phone: user?.phone || '' })
   const [saving, setSaving] = useState(false)
   const { setUser } = useAuth?.() || {}
 
@@ -93,15 +288,15 @@ function InfoTab({ user, setToast }) {
     if (!form.name.trim()) return setToast({ msg: 'Tên không được để trống!', type: 'error' })
     setSaving(true)
     try {
-      const res = await api.put('/api/auth/profile', form)
+      const res = await api.put('/auth/profile', form)
       if (res.data?.success) {
-        setToast({ msg: 'Cập nhật thông tin thành công! 🎉', type: 'success' })
+        setToast({ msg: 'Cập nhật thành công! 🎉', type: 'success' })
         if (setUser) setUser(res.data.user)
       } else {
         setToast({ msg: res.data?.message || 'Cập nhật thất bại.', type: 'error' })
       }
     } catch (err) {
-      setToast({ msg: err.response?.data?.message || 'Có lỗi xảy ra, vui lòng thử lại.', type: 'error' })
+      setToast({ msg: err.response?.data?.message || 'Có lỗi xảy ra.', type: 'error' })
     } finally {
       setSaving(false)
     }
@@ -111,71 +306,29 @@ function InfoTab({ user, setToast }) {
     <div>
       <SectionHeader icon="👤" title="Thông tin cá nhân" desc="Quản lý tên, email và số điện thoại của bạn" />
 
-      {/* Avatar block */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 20,
-        background: 'linear-gradient(135deg, #eff6ff, #f5f3ff)',
-        borderRadius: 16, padding: '20px 24px', marginBottom: 28,
-        border: '1.5px solid #dbeafe',
-      }}>
-        <div style={{
-          width: 72, height: 72, borderRadius: '50%',
-          background: 'linear-gradient(135deg, #2563eb, #7c3aed)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 30, color: '#fff', fontWeight: 900, flexShrink: 0,
-          boxShadow: '0 6px 20px rgba(37,99,235,.3)',
-        }}>
-          {(user?.name || 'U')[0].toUpperCase()}
-        </div>
+      <div className="acc-avatar-card">
+        <div className="acc-avatar-lg">{(user?.name || 'U')[0].toUpperCase()}</div>
         <div>
-          <p style={{ margin: '0 0 2px', fontSize: 18, fontWeight: 800, color: '#111827' }}>{user?.name}</p>
-          <p style={{ margin: '0 0 6px', fontSize: 13, color: '#6b7280' }}>{user?.email}</p>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5,
-            padding: '3px 10px', borderRadius: 20,
+          <p className="acc-avatar-name">{user?.name}</p>
+          <p className="acc-avatar-email">{user?.email}</p>
+          <span className="acc-role-badge" style={{
             background: user?.role === 'admin' ? '#fef3c7' : '#ecfdf5',
             color: user?.role === 'admin' ? '#d97706' : '#16a34a',
-            fontSize: 12, fontWeight: 700,
           }}>
             {user?.role === 'admin' ? '⭐ Admin' : '✅ Thành viên'}
           </span>
         </div>
       </div>
 
-      {/* Form */}
-      <div style={{ display: 'grid', gap: 20 }}>
-        <InputField
-          label="Họ và tên" name="name" value={form.name}
-          onChange={handleChange} icon="✏️" placeholder="Nhập họ tên đầy đủ"
-          required
-        />
-        <InputField
-          label="Email" name="email" value={form.email}
-          onChange={handleChange} icon="📧" placeholder="example@email.com"
-          type="email"
-        />
-        <InputField
-          label="Số điện thoại" name="phone" value={form.phone}
-          onChange={handleChange} icon="📱" placeholder="0912 345 678"
-          type="tel"
-        />
-
-        <button
-          onClick={handleSubmit}
-          disabled={saving}
-          style={{
-            marginTop: 8, padding: '13px 32px', borderRadius: 12,
-            background: saving ? '#93c5fd' : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-            color: '#fff', border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
-            fontSize: 15, fontWeight: 800, width: '100%',
-            boxShadow: '0 4px 16px rgba(37,99,235,.35)',
-            transition: 'all .2s',
-          }}
-          onMouseEnter={e => !saving && (e.currentTarget.style.transform = 'translateY(-1px)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = 'none')}
-        >
-          {saving ? '⏳ Đang lưu...' : '💾 Lưu thay đổi'}
-        </button>
+      <div style={{ display: 'grid', gap: 18 }}>
+        <InputField label="Họ và tên" name="name" value={form.name} onChange={handleChange} placeholder="Nguyễn Văn A" required />
+        <InputField label="Email" name="email" type="email" value={form.email} onChange={handleChange} placeholder="example@email.com" />
+        <InputField label="Số điện thoại" name="phone" type="tel" value={form.phone} onChange={handleChange} placeholder="0912 345 678" />
+        <div style={{ marginTop: 4 }}>
+          <button className="acc-btn-primary" onClick={handleSubmit} disabled={saving}>
+            {saving ? '⏳ Đang lưu...' : '💾 Lưu thay đổi'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -191,7 +344,7 @@ function PasswordTab({ setToast }) {
 
   const handleChange = (e) => setForm(f => ({ ...f, [e.target.name]: e.target.value }))
 
-  const strength = (pw) => {
+  const strengthScore = (pw) => {
     let s = 0
     if (pw.length >= 8) s++
     if (/[A-Z]/.test(pw)) s++
@@ -200,19 +353,23 @@ function PasswordTab({ setToast }) {
     return s
   }
 
-  const strengthLabel = ['', 'Yếu', 'Trung bình', 'Khá', 'Mạnh']
-  const strengthColor = ['', '#ef4444', '#f59e0b', '#2563eb', '#16a34a']
-  const s = strength(form.new_password)
+  const strengthInfo = [
+    null,
+    { label: 'Yếu', color: '#ef4444' },
+    { label: 'Trung bình', color: '#f59e0b' },
+    { label: 'Khá mạnh', color: '#2563eb' },
+    { label: 'Rất mạnh', color: '#16a34a' },
+  ]
+  const s = strengthScore(form.new_password)
 
   const handleSubmit = async () => {
     if (!form.current_password) return setToast({ msg: 'Vui lòng nhập mật khẩu hiện tại!', type: 'error' })
-    if (form.new_password.length < 6) return setToast({ msg: 'Mật khẩu mới phải từ 6 ký tự!', type: 'error' })
-    if (form.new_password !== form.confirm_password) return setToast({ msg: 'Mật khẩu xác nhận không khớp!', type: 'error' })
-
+    if (form.new_password.length < 8) return setToast({ msg: 'Mật khẩu mới phải từ 8 ký tự!', type: 'error' })
+    if (form.new_password !== form.confirm_password) return setToast({ msg: 'Xác nhận mật khẩu không khớp!', type: 'error' })
     setSaving(true)
     try {
-      const res = await api.put('/api/auth/change-password', {
-        current_password: form.current_password,
+      const res = await api.put('/auth/change-password', {
+        old_password: form.current_password,
         new_password: form.new_password,
       })
       if (res.data?.success) {
@@ -230,25 +387,19 @@ function PasswordTab({ setToast }) {
 
   return (
     <div>
-      <SectionHeader icon="🔒" title="Đổi mật khẩu" desc="Bảo mật tài khoản với mật khẩu mạnh" />
+      <SectionHeader icon="🔒" title="Bảo mật tài khoản" desc="Cập nhật mật khẩu để bảo vệ tài khoản của bạn" />
 
-      {/* Security tips */}
-      <div style={{
-        background: 'linear-gradient(135deg, #fffbeb, #fef3c7)',
-        border: '1.5px solid #fde68a', borderRadius: 14,
-        padding: '14px 18px', marginBottom: 24,
-        display: 'flex', gap: 12, alignItems: 'flex-start',
-      }}>
+      <div style={{ background: 'linear-gradient(135deg,#fffbeb,#fef3c7)', border: '1.5px solid #fde68a', borderRadius: 14, padding: '14px 18px', marginBottom: 24, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         <span style={{ fontSize: 20, flexShrink: 0 }}>💡</span>
         <div>
-          <p style={{ margin: '0 0 4px', fontSize: 13, fontWeight: 700, color: '#92400e' }}>Lời khuyên bảo mật</p>
-          <p style={{ margin: 0, fontSize: 13, color: '#78350f', lineHeight: 1.6 }}>
-            Dùng ít nhất 8 ký tự, kết hợp chữ hoa, chữ số và ký tự đặc biệt. Không dùng lại mật khẩu cũ.
+          <p style={{ fontSize: 13, fontWeight: 700, color: '#92400e', marginBottom: 4 }}>Mẹo bảo mật</p>
+          <p style={{ fontSize: 13, color: '#78350f', lineHeight: 1.7 }}>
+            Dùng ít nhất 8 ký tự, kết hợp chữ hoa, số và ký tự đặc biệt (@, #, $...). Không dùng lại mật khẩu cũ.
           </p>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gap: 20 }}>
+      <div style={{ display: 'grid', gap: 18 }}>
         <PasswordField
           label="Mật khẩu hiện tại" name="current_password"
           value={form.current_password} onChange={handleChange}
@@ -261,21 +412,18 @@ function PasswordTab({ setToast }) {
             value={form.new_password} onChange={handleChange}
             show={show.newp} onToggle={() => setShow(s => ({ ...s, newp: !s.newp }))}
           />
-          {/* Strength bar */}
           {form.new_password && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ display: 'flex', gap: 4, marginBottom: 5 }}>
-                {[1,2,3,4].map(i => (
-                  <div key={i} style={{
-                    height: 4, flex: 1, borderRadius: 4,
-                    background: i <= s ? strengthColor[s] : '#e5e7eb',
-                    transition: 'background .3s',
-                  }} />
+            <div className="acc-strength">
+              <div className="acc-strength-bars">
+                {[1, 2, 3, 4].map(i => (
+                  <div key={i} className="acc-strength-bar" style={{ background: i <= s ? (strengthInfo[s]?.color || '#e2e8f0') : '#e2e8f0' }} />
                 ))}
               </div>
-              <p style={{ margin: 0, fontSize: 12, color: strengthColor[s], fontWeight: 700 }}>
-                Độ mạnh: {strengthLabel[s]}
-              </p>
+              {strengthInfo[s] && (
+                <span className="acc-strength-label" style={{ color: strengthInfo[s].color }}>
+                  Độ mạnh: {strengthInfo[s].label}
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -287,21 +435,11 @@ function PasswordTab({ setToast }) {
           error={form.confirm_password && form.new_password !== form.confirm_password ? 'Mật khẩu không khớp!' : ''}
         />
 
-        <button
-          onClick={handleSubmit}
-          disabled={saving}
-          style={{
-            marginTop: 8, padding: '13px 32px', borderRadius: 12,
-            background: saving ? '#fca5a5' : 'linear-gradient(135deg, #ef4444, #dc2626)',
-            color: '#fff', border: 'none', cursor: saving ? 'not-allowed' : 'pointer',
-            fontSize: 15, fontWeight: 800, width: '100%',
-            boxShadow: '0 4px 16px rgba(239,68,68,.3)', transition: 'all .2s',
-          }}
-          onMouseEnter={e => !saving && (e.currentTarget.style.transform = 'translateY(-1px)')}
-          onMouseLeave={e => (e.currentTarget.style.transform = 'none')}
-        >
-          {saving ? '⏳ Đang lưu...' : '🔒 Đổi mật khẩu'}
-        </button>
+        <div style={{ marginTop: 4 }}>
+          <button className="acc-btn-primary acc-btn-danger" onClick={handleSubmit} disabled={saving}>
+            {saving ? '⏳ Đang lưu...' : '🔒 Cập nhật mật khẩu'}
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -317,7 +455,7 @@ function OrdersTab({ setToast }) {
   const [expanded, setExpanded] = useState(null)
 
   useEffect(() => {
-    api.get('/api/orders')
+    api.get('/orders')
       .then(r => setOrders(r.data?.data || r.data?.orders || []))
       .catch(() => setOrders([]))
       .finally(() => setLoading(false))
@@ -328,7 +466,7 @@ function OrdersTab({ setToast }) {
   const handleCancel = async (orderId) => {
     if (!window.confirm('Bạn có chắc muốn hủy đơn hàng này không?')) return
     try {
-      const res = await api.put(`/api/orders/${orderId}/cancel`)
+      const res = await api.put(`/orders/${orderId}/cancel`)
       if (res.data?.success) {
         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'cancelled' } : o))
         setToast({ msg: 'Đã hủy đơn hàng!', type: 'success' })
@@ -338,143 +476,95 @@ function OrdersTab({ setToast }) {
     }
   }
 
+  const FILTERS = [
+    { key: 'all', label: 'Tất cả' },
+    { key: 'pending',   label: '⏳ Chờ xác nhận' },
+    { key: 'confirmed', label: '✅ Đã xác nhận' },
+    { key: 'shipping',  label: '🚚 Đang giao' },
+    { key: 'delivered', label: '📦 Đã nhận' },
+    { key: 'cancelled', label: '❌ Đã hủy' },
+  ]
+
   return (
     <div>
-      <SectionHeader icon="📦" title="Đơn hàng của tôi" desc="Theo dõi và quản lý các đơn hàng" />
+      <SectionHeader icon="📦" title="Đơn hàng của tôi" desc="Theo dõi và quản lý tất cả đơn hàng" />
 
-      {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-        {[
-          { key: 'all', label: 'Tất cả' },
-          { key: 'pending',   label: '⏳ Chờ xác nhận' },
-          { key: 'confirmed', label: '✅ Đã xác nhận' },
-          { key: 'shipping',  label: '🚚 Đang giao' },
-          { key: 'delivered', label: '📦 Đã nhận' },
-          { key: 'cancelled', label: '❌ Đã hủy' },
-        ].map(f => (
-          <button key={f.key} onClick={() => setFilter(f.key)} style={{
-            padding: '7px 16px', borderRadius: 20, border: 'none', cursor: 'pointer',
-            fontSize: 13, fontWeight: 700, transition: 'all .2s',
-            background: filter === f.key ? '#2563eb' : '#f3f4f6',
-            color: filter === f.key ? '#fff' : '#6b7280',
-          }}>
+      <div className="acc-filter-bar">
+        {FILTERS.map(f => (
+          <button key={f.key} className={`acc-filter-btn${filter === f.key ? ' active' : ''}`} onClick={() => setFilter(f.key)}>
             {f.label}
           </button>
         ))}
       </div>
 
       {loading ? <Spinner /> : filtered.length === 0 ? (
-        <EmptyState icon="📦" title="Chưa có đơn hàng nào" desc="Hãy mua sắm ngay để xem đơn hàng tại đây!" cta={{ to: '/products', label: '🛒 Mua ngay' }} />
+        <EmptyState icon="📦" title="Không có đơn hàng nào" desc="Hãy mua sắm ngay để xem đơn hàng tại đây!" cta={{ to: '/products', label: '🛒 Mua ngay' }} />
       ) : (
-        <div style={{ display: 'grid', gap: 16 }}>
+        <div>
           {filtered.map(order => {
             const st = STATUS_MAP[order.status] || STATUS_MAP.pending
             const isExpanded = expanded === order.id
             return (
-              <div key={order.id} style={{
-                border: '1.5px solid #f0f0f5', borderRadius: 16,
-                overflow: 'hidden', transition: 'box-shadow .2s',
-              }}
-                onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 20px rgba(0,0,0,.07)'}
-                onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
-              >
-                {/* Order header */}
-                <div
-                  onClick={() => setExpanded(isExpanded ? null : order.id)}
-                  style={{
-                    padding: '16px 20px', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    background: '#fafafa', gap: 12, flexWrap: 'wrap',
-                  }}
-                >
+              <div key={order.id} className="acc-order-card" style={{ borderColor: isExpanded ? st.border : '#f0f0f5' }}>
+                <div className="acc-order-header" onClick={() => setExpanded(isExpanded ? null : order.id)}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div style={{
-                      width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-                      background: st.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 18,
-                    }}>{st.icon}</div>
+                    <div style={{ width: 42, height: 42, borderRadius: 10, background: st.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0, border: `1px solid ${st.border}` }}>
+                      {st.icon}
+                    </div>
                     <div>
-                      <p style={{ margin: '0 0 2px', fontSize: 14, fontWeight: 800, color: '#111827' }}>
-                        Đơn #{order.id}
-                      </p>
-                      <p style={{ margin: 0, fontSize: 12, color: '#9ca3af' }}>
-                        {order.created_at ? new Date(order.created_at).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' }) : ''}
+                      <p style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', marginBottom: 2 }}>Đơn #{order.id}</p>
+                      <p style={{ fontSize: 12, color: '#94a3b8' }}>
+                        {order.created_at ? new Date(order.created_at).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
                       </p>
                     </div>
                   </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-                    <span style={{
-                      padding: '4px 12px', borderRadius: 20,
-                      background: st.bg, color: st.color, fontSize: 12, fontWeight: 700,
-                    }}>{st.label}</span>
-                    <span style={{ fontSize: 16, fontWeight: 900, color: '#ef4444' }}>
-                      {fmt(order.total_amount || 0)}
-                    </span>
-                    <span style={{ fontSize: 12, color: '#9ca3af', transition: 'transform .2s', display: 'inline-block', transform: isExpanded ? 'rotate(180deg)' : 'none' }}>▼</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <span className="acc-status-badge" style={{ background: st.bg, color: st.color, border: `1px solid ${st.border}` }}>{st.label}</span>
+                    <span style={{ fontSize: 16, fontWeight: 900, color: '#ef4444' }}>{fmt(order.total_amount || 0)}</span>
+                    <span style={{ fontSize: 12, color: '#94a3b8', transform: isExpanded ? 'rotate(180deg)' : 'none', display: 'inline-block', transition: 'transform .2s' }}>▼</span>
                   </div>
                 </div>
 
-                {/* Expanded detail */}
                 {isExpanded && (
-                  <div style={{ padding: '16px 20px', borderTop: '1px solid #f0f0f5' }}>
-                    {/* Items */}
+                  <div className="acc-order-body">
                     {(order.items || order.order_items || []).map((item, i) => (
-                      <div key={i} style={{
-                        display: 'flex', gap: 12, alignItems: 'center',
-                        padding: '10px 0', borderBottom: '1px solid #f9fafb',
-                      }}>
-                        <div style={{
-                          width: 52, height: 52, borderRadius: 10, flexShrink: 0,
-                          background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          overflow: 'hidden',
-                        }}>
+                      <div key={i} className="acc-order-item">
+                        <div className="acc-order-img">
                           {item.primary_image
-                            ? <img src={`${import.meta.env.VITE_IMG_BASE_URL || ''}/${item.primary_image}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => e.target.style.display='none'} />
+                            ? <img src={`${import.meta.env.VITE_IMG_BASE_URL || ''}/${item.primary_image}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => e.target.style.display = 'none'} />
                             : <span style={{ fontSize: 22 }}>💻</span>
                           }
                         </div>
-                        <div style={{ flex: 1 }}>
-                          <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 700, color: '#111827' }}>{item.product_name || item.name}</p>
-                          <p style={{ margin: 0, fontSize: 12, color: '#9ca3af' }}>SL: {item.quantity} × {fmt(item.price || item.unit_price || 0)}</p>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.product_name || item.name}</p>
+                          <p style={{ fontSize: 12, color: '#94a3b8' }}>SL: {item.quantity} × {fmt(item.price || item.unit_price || 0)}</p>
                         </div>
-                        <span style={{ fontSize: 14, fontWeight: 800, color: '#2563eb' }}>{fmt((item.quantity || 1) * (item.price || item.unit_price || 0))}</span>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: '#2563eb', flexShrink: 0 }}>{fmt((item.quantity || 1) * (item.price || item.unit_price || 0))}</span>
                       </div>
                     ))}
 
-                    {/* Footer */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 14, flexWrap: 'wrap', gap: 12 }}>
-                      <div style={{ fontSize: 13, color: '#6b7280' }}>
-                        <p style={{ margin: '0 0 2px' }}>📍 {order.shipping_address || 'Không có địa chỉ'}</p>
-                        {order.note && <p style={{ margin: 0 }}>📝 {order.note}</p>}
+                      <div style={{ fontSize: 13, color: '#64748b' }}>
+                        {order.shipping_address && <p>📍 {order.shipping_address}</p>}
+                        {order.note && <p style={{ marginTop: 3 }}>📝 {order.note}</p>}
                       </div>
-                      <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                         {order.status === 'pending' && (
-                          <button
-                            onClick={() => handleCancel(order.id)}
-                            style={{
-                              padding: '7px 16px', borderRadius: 8, border: '1.5px solid #fca5a5',
-                              background: '#fff', color: '#ef4444', cursor: 'pointer',
-                              fontSize: 13, fontWeight: 700, transition: 'all .2s',
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.background='#fef2f2' }}
-                            onMouseLeave={e => { e.currentTarget.style.background='#fff' }}
-                          >
-                            ❌ Hủy đơn
-                          </button>
+                          <button onClick={() => handleCancel(order.id)} style={{
+                            padding: '7px 16px', borderRadius: 8, border: '1.5px solid #fca5a5',
+                            background: '#fff', color: '#ef4444', cursor: 'pointer', fontSize: 13, fontWeight: 700,
+                          }}>❌ Hủy đơn</button>
                         )}
                         {order.status === 'delivered' && (
-                          <Link to={`/products`} style={{
+                          <Link to="/products" style={{
                             padding: '7px 16px', borderRadius: 8,
                             background: 'linear-gradient(135deg,#2563eb,#1d4ed8)',
                             color: '#fff', fontSize: 13, fontWeight: 700, textDecoration: 'none',
-                          }}>
-                            🔄 Mua lại
-                          </Link>
+                          }}>🔄 Mua lại</Link>
                         )}
                         <div style={{ textAlign: 'right' }}>
-                          <p style={{ margin: '0 0 2px', fontSize: 12, color: '#9ca3af' }}>Tổng đơn</p>
-                          <p style={{ margin: 0, fontSize: 18, fontWeight: 900, color: '#ef4444' }}>{fmt(order.total_amount || 0)}</p>
+                          <p style={{ fontSize: 11, color: '#94a3b8', marginBottom: 2 }}>Tổng cộng</p>
+                          <p style={{ fontSize: 18, fontWeight: 900, color: '#ef4444' }}>{fmt(order.total_amount || 0)}</p>
                         </div>
                       </div>
                     </div>
@@ -500,17 +590,19 @@ function AddressTab({ setToast }) {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    api.get('/api/auth/addresses')
+    api.get('/auth/addresses')
       .then(r => setAddresses(r.data?.data || r.data?.addresses || []))
       .catch(() => setAddresses([]))
       .finally(() => setLoading(false))
   }, [])
 
+  const upd = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }))
+
   const handleAdd = async () => {
     if (!form.full_name || !form.address || !form.city) return setToast({ msg: 'Vui lòng điền đủ thông tin!', type: 'error' })
     setSaving(true)
     try {
-      const res = await api.post('/api/auth/addresses', form)
+      const res = await api.post('/auth/addresses', form)
       if (res.data?.success) {
         setAddresses(prev => [...prev, res.data.address])
         setAdding(false)
@@ -518,7 +610,7 @@ function AddressTab({ setToast }) {
         setToast({ msg: 'Đã thêm địa chỉ mới!', type: 'success' })
       }
     } catch {
-      setToast({ msg: 'Không thể thêm địa chỉ. Thử lại sau!', type: 'error' })
+      setToast({ msg: 'Không thể thêm địa chỉ.', type: 'error' })
     } finally {
       setSaving(false)
     }
@@ -527,7 +619,7 @@ function AddressTab({ setToast }) {
   const handleDelete = async (id) => {
     if (!window.confirm('Xóa địa chỉ này?')) return
     try {
-      await api.delete(`/api/auth/addresses/${id}`)
+      await api.delete(`/auth/addresses/${id}`)
       setAddresses(prev => prev.filter(a => a.id !== id))
       setToast({ msg: 'Đã xóa địa chỉ!', type: 'success' })
     } catch {
@@ -541,16 +633,14 @@ function AddressTab({ setToast }) {
 
       {loading ? <Spinner /> : (
         <>
-          <div style={{ display: 'grid', gap: 12, marginBottom: 20 }}>
-            {addresses.length === 0 && !adding && (
-              <EmptyState icon="📍" title="Chưa có địa chỉ" desc="Thêm địa chỉ để thanh toán nhanh hơn khi mua hàng!" />
-            )}
+          {addresses.length === 0 && !adding && (
+            <EmptyState icon="📍" title="Chưa có địa chỉ" desc="Thêm địa chỉ để thanh toán nhanh hơn!" />
+          )}
+          <div style={{ marginBottom: 16 }}>
             {addresses.map(addr => (
-              <div key={addr.id} style={{
+              <div key={addr.id} className="acc-addr-card" style={{
                 border: `1.5px solid ${addr.is_default ? '#bfdbfe' : '#f0f0f5'}`,
                 background: addr.is_default ? '#eff6ff' : '#fff',
-                borderRadius: 14, padding: '16px 20px',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12,
               }}>
                 <div>
                   {addr.is_default && (
@@ -558,50 +648,41 @@ function AddressTab({ setToast }) {
                       ⭐ Mặc định
                     </span>
                   )}
-                  <p style={{ margin: '0 0 3px', fontSize: 14, fontWeight: 700, color: '#111827' }}>{addr.full_name}</p>
-                  <p style={{ margin: '0 0 2px', fontSize: 13, color: '#6b7280' }}>📱 {addr.phone}</p>
-                  <p style={{ margin: 0, fontSize: 13, color: '#6b7280' }}>📍 {addr.address}, {addr.city}</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', marginBottom: 3 }}>{addr.full_name}</p>
+                  <p style={{ fontSize: 13, color: '#64748b', marginBottom: 2 }}>📱 {addr.phone}</p>
+                  <p style={{ fontSize: 13, color: '#64748b' }}>📍 {addr.address}, {addr.city}</p>
                 </div>
-                <button
-                  onClick={() => handleDelete(addr.id)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#ef4444', padding: 4, flexShrink: 0 }}
-                  title="Xóa"
+                <button onClick={() => handleDelete(addr.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#ef4444', padding: 6, flexShrink: 0, borderRadius: 8, transition: 'background .15s' }}
+                  onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                  title="Xóa địa chỉ"
                 >🗑️</button>
               </div>
             ))}
           </div>
 
           {adding ? (
-            <div style={{ border: '1.5px solid #dbeafe', borderRadius: 16, padding: 24, background: '#f8faff' }}>
-              <p style={{ margin: '0 0 18px', fontSize: 15, fontWeight: 800, color: '#1e3a8a' }}>➕ Thêm địa chỉ mới</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-                <InputField label="Họ tên" name="full_name" value={form.full_name} onChange={e => setForm(f => ({...f, full_name: e.target.value}))} placeholder="Nguyễn Văn A" />
-                <InputField label="Số điện thoại" name="phone" value={form.phone} onChange={e => setForm(f => ({...f, phone: e.target.value}))} placeholder="0912 345 678" />
+            <div className="acc-addr-form">
+              <p style={{ fontSize: 15, fontWeight: 800, color: '#1e3a8a', marginBottom: 18 }}>➕ Thêm địa chỉ mới</p>
+              <div className="acc-addr-grid">
+                <InputField label="Họ và tên" name="full_name" value={form.full_name} onChange={upd('full_name')} placeholder="Nguyễn Văn A" required />
+                <InputField label="Số điện thoại" name="phone" value={form.phone} onChange={upd('phone')} placeholder="0912 345 678" />
               </div>
               <div style={{ marginBottom: 16 }}>
-                <InputField label="Địa chỉ" name="address" value={form.address} onChange={e => setForm(f => ({...f, address: e.target.value}))} placeholder="Số nhà, đường, phường/xã" />
+                <InputField label="Địa chỉ" name="address" value={form.address} onChange={upd('address')} placeholder="Số nhà, đường, phường/xã" required />
               </div>
               <div style={{ marginBottom: 16 }}>
-                <InputField label="Tỉnh / Thành phố" name="city" value={form.city} onChange={e => setForm(f => ({...f, city: e.target.value}))} placeholder="Hà Nội" />
+                <InputField label="Tỉnh / Thành phố" name="city" value={form.city} onChange={upd('city')} placeholder="Hà Nội" required />
               </div>
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151', cursor: 'pointer', marginBottom: 20 }}>
-                <input type="checkbox" checked={form.is_default} onChange={e => setForm(f => ({...f, is_default: e.target.checked}))} />
+                <input type="checkbox" checked={form.is_default} onChange={upd('is_default')} style={{ accentColor: '#2563eb' }} />
                 Đặt làm địa chỉ mặc định
               </label>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={handleAdd} disabled={saving} style={{
-                  flex: 1, padding: '11px', borderRadius: 10,
-                  background: 'linear-gradient(135deg,#2563eb,#1d4ed8)',
-                  color: '#fff', border: 'none', cursor: 'pointer', fontSize: 14, fontWeight: 700,
-                }}>
-                  {saving ? '⏳...' : '💾 Lưu địa chỉ'}
+              <div className="acc-addr-actions">
+                <button className="acc-btn-primary" style={{ flex: 1, padding: '11px' }} onClick={handleAdd} disabled={saving}>
+                  {saving ? '⏳ Đang lưu...' : '💾 Lưu địa chỉ'}
                 </button>
-                <button onClick={() => setAdding(false)} style={{
-                  padding: '11px 20px', borderRadius: 10, border: '1.5px solid #e5e7eb',
-                  background: '#fff', cursor: 'pointer', fontSize: 14, color: '#6b7280', fontWeight: 600,
-                }}>
-                  Hủy
-                </button>
+                <button className="acc-btn-outline" onClick={() => setAdding(false)}>Hủy</button>
               </div>
             </div>
           ) : (
@@ -611,8 +692,8 @@ function AddressTab({ setToast }) {
               color: '#2563eb', cursor: 'pointer', fontSize: 14, fontWeight: 700,
               transition: 'all .2s',
             }}
-              onMouseEnter={e => { e.currentTarget.style.background='#dbeafe'; e.currentTarget.style.borderColor='#2563eb' }}
-              onMouseLeave={e => { e.currentTarget.style.background='#eff6ff'; e.currentTarget.style.borderColor='#bfdbfe' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#dbeafe'; e.currentTarget.style.borderColor = '#2563eb' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.borderColor = '#bfdbfe' }}
             >
               ➕ Thêm địa chỉ mới
             </button>
@@ -624,170 +705,7 @@ function AddressTab({ setToast }) {
 }
 
 /* ═══════════════════════════════════════════════════════
-   TAB: YÊU THÍCH
-═══════════════════════════════════════════════════════ */
-function WishlistTab({ setToast }) {
-  const [items, setItems] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api.get('/api/wishlist')
-      .then(r => setItems(r.data?.data || r.data?.items || []))
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false))
-  }, [])
-
-  const handleRemove = async (productId) => {
-    try {
-      await api.delete(`/api/wishlist/${productId}`)
-      setItems(prev => prev.filter(i => i.product_id !== productId && i.id !== productId))
-      setToast({ msg: 'Đã xóa khỏi danh sách yêu thích!', type: 'success' })
-    } catch {
-      setToast({ msg: 'Không thể xóa, thử lại sau!', type: 'error' })
-    }
-  }
-
-  return (
-    <div>
-      <SectionHeader icon="❤️" title="Sản phẩm yêu thích" desc="Các sản phẩm bạn đã lưu để xem sau" />
-
-      {loading ? <Spinner /> : items.length === 0 ? (
-        <EmptyState icon="❤️" title="Chưa có sản phẩm yêu thích" desc="Bấm ❤️ vào sản phẩm để lưu vào đây!" cta={{ to: '/products', label: '🛍️ Khám phá ngay' }} />
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))', gap: 16 }}>
-          {items.map(item => {
-            const price = item.sale_price || item.price
-            const oldPrice = item.sale_price ? item.price : null
-            const img = item.primary_image ? `${import.meta.env.VITE_IMG_BASE_URL || ''}/${item.primary_image}` : 'https://placehold.co/200x150?text=💻'
-            return (
-              <div key={item.id || item.product_id} style={{
-                border: '1.5px solid #f0f0f5', borderRadius: 16, overflow: 'hidden',
-                background: '#fff', transition: 'all .2s',
-              }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow='0 8px 24px rgba(0,0,0,.08)'; e.currentTarget.style.transform='translateY(-3px)' }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow='none'; e.currentTarget.style.transform='none' }}
-              >
-                <Link to={`/products/${item.slug}`} style={{ textDecoration: 'none' }}>
-                  <div style={{ background: 'linear-gradient(135deg,#f8fafc,#f0f4ff)', padding: '16px', textAlign: 'center' }}>
-                    <img src={img} alt={item.name} style={{ width: '100%', height: 130, objectFit: 'contain' }} onError={e => e.target.src = 'https://placehold.co/200x150?text=?'} />
-                  </div>
-                  <div style={{ padding: '12px 14px' }}>
-                    <p style={{ margin: '0 0 6px', fontSize: 13, fontWeight: 700, color: '#111827', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{item.name}</p>
-                    <p style={{ margin: 0, fontSize: 15, fontWeight: 900, color: '#ef4444' }}>{fmt(price)}</p>
-                    {oldPrice && <p style={{ margin: '2px 0 0', fontSize: 12, color: '#9ca3af', textDecoration: 'line-through' }}>{fmt(oldPrice)}</p>}
-                  </div>
-                </Link>
-                <div style={{ padding: '0 14px 14px', display: 'flex', gap: 8 }}>
-                  <Link to={`/products/${item.slug}`} style={{
-                    flex: 1, padding: '8px', borderRadius: 8, textAlign: 'center',
-                    background: 'linear-gradient(135deg,#2563eb,#1d4ed8)',
-                    color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none',
-                  }}>
-                    Xem ngay
-                  </Link>
-                  <button onClick={() => handleRemove(item.product_id || item.id)} style={{
-                    padding: '8px 10px', borderRadius: 8, border: '1.5px solid #fca5a5',
-                    background: '#fff', color: '#ef4444', cursor: 'pointer', fontSize: 14,
-                  }} title="Xóa yêu thích">🗑️</button>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════
-   SHARED COMPONENTS
-═══════════════════════════════════════════════════════ */
-function SectionHeader({ icon, title, desc }) {
-  return (
-    <div style={{ marginBottom: 28 }}>
-      <h2 style={{ margin: '0 0 6px', fontSize: 22, fontWeight: 900, color: '#111827', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span>{icon}</span> {title}
-      </h2>
-      <p style={{ margin: 0, fontSize: 14, color: '#6b7280' }}>{desc}</p>
-      <div style={{ height: 3, width: 48, background: 'linear-gradient(90deg,#2563eb,#7c3aed)', borderRadius: 4, marginTop: 12 }} />
-    </div>
-  )
-}
-
-function InputField({ label, name, value, onChange, placeholder, type = 'text', icon, required, error }) {
-  const [focused, setFocused] = useState(false)
-  return (
-    <div>
-      <label style={{ display: 'block', marginBottom: 7, fontSize: 13, fontWeight: 700, color: '#374151' }}>
-        {label} {required && <span style={{ color: '#ef4444' }}>*</span>}
-      </label>
-      <input
-        type={type} name={name} value={value} onChange={onChange}
-        placeholder={placeholder}
-        onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-        style={{
-          width: '100%', padding: '11px 14px', borderRadius: 10, outline: 'none',
-          border: `1.5px solid ${error ? '#fca5a5' : focused ? '#2563eb' : '#e5e7eb'}`,
-          background: focused ? '#f8faff' : '#fff',
-          fontSize: 14, color: '#111827', transition: 'all .2s',
-          boxSizing: 'border-box',
-        }}
-      />
-      {error && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#ef4444' }}>{error}</p>}
-    </div>
-  )
-}
-
-function PasswordField({ label, name, value, onChange, show, onToggle, error }) {
-  const [focused, setFocused] = useState(false)
-  return (
-    <div>
-      <label style={{ display: 'block', marginBottom: 7, fontSize: 13, fontWeight: 700, color: '#374151' }}>{label}</label>
-      <div style={{ position: 'relative' }}>
-        <input
-          type={show ? 'text' : 'password'}
-          name={name} value={value} onChange={onChange}
-          onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
-          placeholder="••••••••"
-          style={{
-            width: '100%', padding: '11px 44px 11px 14px', borderRadius: 10, outline: 'none',
-            border: `1.5px solid ${error ? '#fca5a5' : focused ? '#2563eb' : '#e5e7eb'}`,
-            background: focused ? '#f8faff' : '#fff',
-            fontSize: 14, color: '#111827', transition: 'all .2s',
-            boxSizing: 'border-box',
-          }}
-        />
-        <button type="button" onClick={onToggle} style={{
-          position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
-          background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#9ca3af',
-        }}>
-          {show ? '🙈' : '👁️'}
-        </button>
-      </div>
-      {error && <p style={{ margin: '4px 0 0', fontSize: 12, color: '#ef4444' }}>{error}</p>}
-    </div>
-  )
-}
-
-function EmptyState({ icon, title, desc, cta }) {
-  return (
-    <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-      <div style={{ fontSize: 56, marginBottom: 16 }}>{icon}</div>
-      <h3 style={{ margin: '0 0 8px', fontSize: 18, fontWeight: 800, color: '#374151' }}>{title}</h3>
-      <p style={{ margin: '0 0 20px', fontSize: 14, color: '#9ca3af' }}>{desc}</p>
-      {cta && (
-        <Link to={cta.to} style={{
-          display: 'inline-block', padding: '10px 24px', borderRadius: 10,
-          background: 'linear-gradient(135deg,#2563eb,#1d4ed8)',
-          color: '#fff', fontWeight: 700, fontSize: 14, textDecoration: 'none',
-        }}>{cta.label}</Link>
-      )}
-    </div>
-  )
-}
-
-/* ═══════════════════════════════════════════════════════
-   MAIN: ACCOUNT PAGE
+   MAIN PAGE
 ═══════════════════════════════════════════════════════ */
 export default function AccountPage() {
   const { user, logout } = useAuth()
@@ -795,116 +713,105 @@ export default function AccountPage() {
   const [activeTab, setActiveTab] = useState('info')
   const [toast, setToast] = useState({ msg: '', type: 'success' })
 
-  // Redirect nếu chưa đăng nhập
   useEffect(() => {
     if (user === null) navigate('/login', { replace: true })
   }, [user, navigate])
 
   if (!user) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <Spinner size={52} />
+      <Spinner />
     </div>
   )
 
-  return (
-    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: "'Inter','Segoe UI',sans-serif" }}>
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg) } }
-        @keyframes slideUp { from { opacity:0; transform:translateY(16px) } to { opacity:1; transform:translateY(0) } }
-        @keyframes dropIn { from { opacity:0; transform:translateY(-8px) } to { opacity:1; transform:translateY(0) } }
-        * { box-sizing: border-box }
-        input::placeholder { color: #d1d5db }
-        ::-webkit-scrollbar { width: 6px }
-        ::-webkit-scrollbar-track { background: #f1f5f9 }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px }
-      `}</style>
+  const renderTab = () => {
+    switch (activeTab) {
+      case 'info':     return <InfoTab     user={user} setToast={setToast} />
+      case 'password': return <PasswordTab              setToast={setToast} />
+      case 'orders':   return <OrdersTab                setToast={setToast} />
+      case 'address':  return <AddressTab               setToast={setToast} />
+      default:         return null
+    }
+  }
 
-      {/* Top banner */}
-      <div style={{ background: 'linear-gradient(135deg,#1a2341,#1e3a8a)', padding: '48px 24px 80px' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, textDecoration: 'none', marginBottom: 24 }}>
+  return (
+    <div className="acc-root">
+      <style>{globalCSS}</style>
+
+      {/* HERO */}
+      <div className="acc-hero">
+        <div className="acc-hero-inner">
+          <Link to="/" className="acc-logo">
             <span style={{ fontSize: 22 }}>💻</span>
-            <span style={{ fontSize: 18, fontWeight: 900, color: '#fff' }}>Laptop<span style={{ color: '#60a5fa' }}>Store</span></span>
+            <span className="acc-logo-text">Laptop<span>Store</span></span>
           </Link>
-          <nav style={{ fontSize: 13, color: '#64748b', marginBottom: 16 }}>
-            <Link to="/" style={{ color: '#94a3b8', textDecoration: 'none' }}>Trang chủ</Link>
-            <span style={{ margin: '0 8px', color: '#475569' }}>›</span>
+          <nav className="acc-breadcrumb">
+            <Link to="/">Trang chủ</Link>
+            <span>›</span>
             <span style={{ color: '#cbd5e1' }}>Tài khoản</span>
           </nav>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <div style={{
-              width: 64, height: 64, borderRadius: '50%',
-              background: 'linear-gradient(135deg,#60a5fa,#818cf8)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 28, fontWeight: 900, color: '#fff', flexShrink: 0,
-              boxShadow: '0 4px 20px rgba(96,165,250,.5)',
-            }}>
-              {(user.name || 'U')[0].toUpperCase()}
-            </div>
+          <div className="acc-user-hero">
+            <div className="acc-avatar-hero">{(user.name || 'U')[0].toUpperCase()}</div>
             <div>
-              <h1 style={{ margin: '0 0 4px', fontSize: 26, fontWeight: 900, color: '#fff' }}>
-                Xin chào, {user.name?.split(' ').pop()}! 👋
-              </h1>
-              <p style={{ margin: 0, fontSize: 14, color: '#94a3b8' }}>{user.email}</p>
+              <h1 className="acc-user-name">Xin chào, {user.name?.split(' ').pop()}! 👋</h1>
+              <p className="acc-user-email">{user.email}</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main content */}
-      <div style={{ maxWidth: 1100, margin: '-48px auto 0', padding: '0 24px 60px', position: 'relative', zIndex: 10 }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 24, alignItems: 'start' }}>
+      {/* BODY */}
+      <div className="acc-body">
+        <div className="acc-grid">
 
-          {/* Sidebar */}
-          <div style={{ background: '#fff', borderRadius: 20, padding: '8px', boxShadow: '0 4px 24px rgba(0,0,0,.07)', position: 'sticky', top: 80 }}>
+          {/* SIDEBAR — hidden on mobile */}
+          <aside className="acc-sidebar">
             {TABS.map(tab => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key)} style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                padding: '13px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
-                marginBottom: 2,
-                background: activeTab === tab.key ? 'linear-gradient(135deg,#eff6ff,#f0f4ff)' : 'transparent',
-                color: activeTab === tab.key ? '#2563eb' : '#6b7280',
-                fontWeight: activeTab === tab.key ? 800 : 600,
-                fontSize: 14, textAlign: 'left', transition: 'all .15s',
-                borderLeft: activeTab === tab.key ? '3px solid #2563eb' : '3px solid transparent',
-              }}
-                onMouseEnter={e => { if (activeTab !== tab.key) e.currentTarget.style.background = '#f8fafc' }}
-                onMouseLeave={e => { if (activeTab !== tab.key) e.currentTarget.style.background = 'transparent' }}
+              <button
+                key={tab.key}
+                className={`acc-nav-btn${activeTab === tab.key ? ' active' : ''}`}
+                onClick={() => setActiveTab(tab.key)}
               >
-                <span style={{ fontSize: 18 }}>{tab.icon}</span>
-                {tab.label}
+                <span className="acc-nav-icon">{tab.icon}</span>
+                <span className="acc-nav-meta">
+                  <span>{tab.label}</span>
+                  <span className="acc-nav-sublabel">{tab.desc}</span>
+                </span>
               </button>
             ))}
-
-            <div style={{ margin: '12px 8px 4px', borderTop: '1px solid #f3f4f6' }} />
-
-            {/* Logout */}
-            <button onClick={logout} style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-              padding: '13px 16px', borderRadius: 12, border: 'none', cursor: 'pointer',
-              background: 'transparent', color: '#ef4444',
-              fontWeight: 700, fontSize: 14, textAlign: 'left', transition: 'all .15s',
-            }}
-              onMouseEnter={e => e.currentTarget.style.background = '#fef2f2'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              <span style={{ fontSize: 18 }}>🚪</span> Đăng xuất
+            <div className="acc-nav-divider" />
+            <button className="acc-logout-btn" onClick={logout}>
+              <span className="acc-nav-icon">🚪</span> Đăng xuất
             </button>
-          </div>
+          </aside>
 
-          {/* Content panel */}
-          <div style={{ background: '#fff', borderRadius: 20, padding: '32px 36px', boxShadow: '0 4px 24px rgba(0,0,0,.07)', minHeight: 500 }}>
-            {activeTab === 'info'     && <InfoTab     user={user} setToast={setToast} />}
-            {activeTab === 'password' && <PasswordTab              setToast={setToast} />}
-            {activeTab === 'orders'   && <OrdersTab                setToast={setToast} />}
-            {activeTab === 'address'  && <AddressTab               setToast={setToast} />}
-            {activeTab === 'wishlist' && <WishlistTab              setToast={setToast} />}
-          </div>
+          {/* CONTENT PANEL */}
+          <main className="acc-panel" key={activeTab}>
+            {renderTab()}
+          </main>
         </div>
       </div>
 
-      {/* Toast */}
-      <Toast msg={toast.msg} type={toast.type} onClose={() => setToast({ msg: '', type: toast.type })} />
+      {/* MOBILE BOTTOM NAV */}
+      <nav className="acc-mobile-nav">
+        <div className="acc-mobile-nav-inner">
+          {TABS.map(tab => (
+            <button
+              key={tab.key}
+              className={`acc-mobile-nav-btn${activeTab === tab.key ? ' active' : ''}`}
+              onClick={() => setActiveTab(tab.key)}
+            >
+              <span className="mnb-icon">{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
+          <button className="acc-mobile-nav-btn" onClick={logout} style={{ color: '#ef4444' }}>
+            <span className="mnb-icon">🚪</span>
+            Thoát
+          </button>
+        </div>
+      </nav>
+
+      <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(p => ({ ...p, msg: '' }))} />
     </div>
   )
 }
